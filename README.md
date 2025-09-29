@@ -69,7 +69,7 @@ O TecShop é um aplicativo mobile marketplace para a comunidade Fatec, permitind
 ### 1. Clone o repositório
 
 ```bash
-git clone <url-do-repositorio>
+git clone https://github.com/EduardoKuwahara/TecShop.git
 cd TecShop
 ```
 
