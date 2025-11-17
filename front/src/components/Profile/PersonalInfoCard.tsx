@@ -9,7 +9,7 @@ export type PersonalInfoCardProps = {
   onProfileUpdate?: (data: User) => void | Promise<void>;
 };
 
-const IP_DA_SUA_MAQUINA = '192.168.15.5';
+const IP_DA_SUA_MAQUINA = '10.226.241.139';
 
 export default function PersonalInfoCard({ user, onProfileUpdate }: PersonalInfoCardProps) {
   const { token } = useAuth();

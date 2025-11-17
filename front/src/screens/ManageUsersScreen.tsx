@@ -16,7 +16,7 @@ type User = {
   role: 'user' | 'admin';
 };
 
-const IP_DA_SUA_MAQUINA = '192.168.15.5';
+const IP_DA_SUA_MAQUINA = '10.226.241.139';
 
 export default function AdminManageScreen() {
   const [users, setUsers] = useState<User[]>([]);

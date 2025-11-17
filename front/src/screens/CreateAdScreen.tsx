@@ -24,7 +24,8 @@ export default function AnnounceScreen() {
   const [date, setDate] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const IP_DA_SUA_MAQUINA = '192.168.15.5';
+  // Substitua pela URL do seu backend
+  const IP_DA_SUA_MAQUINA = '10.226.241.139';
 
   const handlePublish = async () => {
     if (!title || !category || !description || !price || !location || !date) {

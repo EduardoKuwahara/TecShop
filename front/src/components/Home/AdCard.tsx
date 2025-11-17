@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { Clock } from 'lucide-react-native';
+import { Clock, Heart, Star } from 'lucide-react-native';
+import { RatingStars } from '../RatingStars';
 
 export type AdCardProps = {
   imageUrl: string;
@@ -10,9 +11,25 @@ export type AdCardProps = {
   time: string; 
   author: string;
   onPress?: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
+  averageRating?: number;
+  ratingCount?: number;
 };
 
-export default function AdCard({ imageUrl, title, price, description, time, author, onPress }: AdCardProps) {
+export default function AdCard({ 
+  imageUrl, 
+  title, 
+  price, 
+  description, 
+  time, 
+  author, 
+  onPress, 
+  isFavorite = false, 
+  onToggleFavorite,
+  averageRating = 0,
+  ratingCount = 0
+}: AdCardProps) {
 
   const formattedTime = new Date(time).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -23,9 +40,10 @@ export default function AdCard({ imageUrl, title, price, description, time, auth
   });
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
-      <Image source={{ uri: imageUrl }} style={styles.cardImage} />
-      <View style={styles.cardContent}>
+    <View style={styles.card}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.cardPressable}>
+        <Image source={{ uri: imageUrl }} style={styles.cardImage} />
+        <View style={styles.cardContent}>
         <View style={styles.cardRow}>
           <Text style={styles.cardTitle} numberOfLines={1} ellipsizeMode="tail">
             {title}
@@ -33,15 +51,41 @@ export default function AdCard({ imageUrl, title, price, description, time, auth
           <View style={styles.priceTag}><Text style={styles.priceText}>{price}</Text></View>
         </View>
         <Text style={styles.cardDesc} numberOfLines={2}>{description}</Text>
+        
+        {/* Seção de Avaliações */}
+        {ratingCount > 0 && (
+          <View style={styles.ratingRow}>
+            <RatingStars rating={Math.round(averageRating)} readonly size={14} />
+            <Text style={styles.ratingText}>
+              {averageRating.toFixed(1)} ({ratingCount} {ratingCount === 1 ? 'avaliação' : 'avaliações'})
+            </Text>
+          </View>
+        )}
+        
         <Text style={styles.authorText}>Por {author}</Text>
-        <View style={styles.cardRow}>
-          <View style={styles.timeRow}>
-            <Clock size={16} color="#22C55E" />
-            <Text style={styles.timeText}>Até {formattedTime}</Text>
+          <View style={styles.cardRow}>
+            <View style={styles.timeRow}>
+              <Clock size={16} color="#22C55E" />
+              <Text style={styles.timeText}>Até {formattedTime}</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+      
+      {/* Botão de Favoritar */}
+      {onToggleFavorite && (
+        <TouchableOpacity 
+          style={styles.favoriteButton}
+          onPress={onToggleFavorite}
+        >
+          <Heart 
+            size={20} 
+            color={isFavorite ? "#FF3B30" : "#A3A3A3"} 
+            fill={isFavorite ? "#FF3B30" : "transparent"}
+          />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
@@ -115,6 +159,32 @@ const styles = StyleSheet.create({
     color: '#22C55E',
     fontSize: 14,
     marginLeft: 4,
+    fontWeight: '500',
+  },
+  cardPressable: {
+    flex: 1,
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
+  },
+  ratingText: {
+    fontSize: 13,
+    color: '#666',
     fontWeight: '500',
   },
 });

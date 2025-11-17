@@ -17,6 +17,7 @@ import ChatScreen from '../screens/ChatScreen';
 import ChatDetailScreen from '../screens/ChatDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ManageUsersScreen from '../screens/ManageUsersScreen';
+import FavoritesScreen from '../screens/FavoritesScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -31,7 +32,8 @@ function MainAppTabs() {
         tabBarInactiveTintColor: 'gray',
       }}
     >
-      <Tab.Screen name="Início" component={HomeScreen} options={{ tabBarIcon: ({ color, size }) => <Home color={color} size={size} /> }} />
+     <Tab.Screen name="Início" component={HomeScreen} options={{ tabBarIcon: ({ color, size }) => <Home color={color} size={size} /> }} />
+  <Tab.Screen name="Buscar" component={SearchScreen} options={{ tabBarIcon: ({ color, size }) => <Search color={color} size={size} /> }} />
       <Tab.Screen name="Anunciar" component={CreateAdScreen} options={{ tabBarIcon: ({ color, size }) => <PlusCircle color={color} size={size} /> }} />
   <Tab.Screen name="Perfil" component={ProfileScreen} options={{ tabBarIcon: ({ color, size }) => <UserIcon color={color} size={size} /> }} />
     </Tab.Navigator>
@@ -58,6 +60,7 @@ export default function AppNavigator() {
           
           {/* Telas que são abertas POR CIMA das abas */}
           <Stack.Screen name="MyAds" component={MyAdsScreen} options={{ headerShown: true, title: 'Meus Anúncios' }} />
+          <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ headerShown: false }} />
           <Stack.Screen name="ChatDetail" component={ChatDetailScreen} options={{ headerShown: true, title: 'Conversa' }} />
           <Stack.Screen name="ManageUsers" component={ManageUsersScreen} options={{ headerShown: true, title: 'Gerenciar Usuários' }} />
           <Stack.Screen name="AdDetail" component={AdDetailScreen} options={{ headerShown: true, title: '', headerBackVisible: false }} />

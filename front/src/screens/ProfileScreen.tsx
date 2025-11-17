@@ -6,12 +6,15 @@ import { useAuth, User } from '../contexts/AuthContext';
 
 import PersonalInfoCard from '../components/Profile/PersonalInfoCard';
 import MyAdsCard from '../components/Profile/MyAdsCard';
+import FavoritesCard from '../components/Profile/FavoritesCard';
 import SettingsCard from '../components/Profile/SettingsCard';
 import LogoutCard from '../components/Profile/LogoutCard';
+import { useFavorites } from '../contexts/FavoritesContext';
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   const { user, logout, updateUser } = useAuth();
+  const { favorites } = useFavorites();
 
   console.log('ProfileScreen user:', user);
 
@@ -42,6 +45,10 @@ export default function ProfileScreen() {
                 activeCount={3}
                 soldCount={12}
                 onViewAll={() => navigation.navigate('MyAds')}
+              />
+              <FavoritesCard
+                savedCount={favorites.size}
+                onViewFavorites={() => navigation.navigate('Favorites')}
               />
               <SettingsCard
                 onNotifications={() => {}}

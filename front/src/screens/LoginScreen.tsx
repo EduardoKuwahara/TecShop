@@ -26,7 +26,7 @@ export default function LoginScreen() {
   const [regShowPassword, setRegShowPassword] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
 
-  const IP_DA_SUA_MAQUINA = '192.168.15.5';
+  const IP_DA_SUA_MAQUINA = '10.226.241.139';
 
   const handleLogin = async (loginEmail = email, loginSenha = senha) => {
     if (!loginEmail || !loginSenha) {

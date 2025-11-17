@@ -9,7 +9,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 
 import { useAuth } from '../contexts/AuthContext';
 
-const IP_DA_SUA_MAQUINA = '192.168.15.5';
+const IP_DA_SUA_MAQUINA = '10.226.241.139';
 
 const categoryImages: Record<string, string> = {
   'Comida': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80',
@@ -115,11 +115,9 @@ export default function MyAdsScreen() {
     );
   };
   
-  // --- CORREÇÃO 1: Ajuste na abertura do modal ---
   const openEditModal = (ad: Ad) => {
     setAdToEdit(ad);
 
-    // Garante que o seletor de data comece com a data atual do anúncio
     const initialDate = ad.availableUntil ? new Date(ad.availableUntil) : new Date();
     setModalDateObject(initialDate);
 

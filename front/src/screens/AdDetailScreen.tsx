@@ -1,7 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
-import { Clock, MapPin, Mail, Phone, ArrowLeft } from 'lucide-react-native';
+import React, { useState, useContext } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, RefreshControl } from 'react-native';
+import { Clock, MapPin, Mail, Phone, ArrowLeft, Star } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { RatingModal } from '../components/RatingModal';
+import { RatingList } from '../components/RatingList';
+import { useAuth } from '../contexts/AuthContext';
 
 
 type Seller = {
@@ -40,6 +43,10 @@ export default function AdDetailScreen() {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { ad } = route.params;
+    const { user } = useAuth();
+    const [showRatingModal, setShowRatingModal] = useState(false);
+    const [refreshRatings, setRefreshRatings] = useState(0);
+    const [refreshing, setRefreshing] = useState(false);
 
     const categoryImages: Record<string, string> = {
         'Comida': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80',
@@ -55,8 +62,46 @@ export default function AdDetailScreen() {
         hour: '2-digit', minute: '2-digit', hour12: false
     });
 
+    const handleRatePress = () => {
+        if (!user) {
+            Alert.alert('Login necessário', 'Você precisa estar logado para avaliar anúncios.');
+            return;
+        }
+        
+        console.log('Usuário logado:', user);
+        console.log('ID do autor do anúncio:', ad.authorId);
+        
+        if (user.id === ad.authorId) {
+            Alert.alert('Não permitido', 'Você não pode avaliar seu próprio anúncio.');
+            return;
+        }
+
+        setShowRatingModal(true);
+    };
+
+    const handleRatingSubmitted = (rating: number, comment?: string) => {
+        // Força a atualização da lista de avaliações
+        setRefreshRatings(prev => prev + 1);
+    };
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        // Força a atualização das avaliações
+        setRefreshRatings(prev => prev + 1);
+        // Simula um delay para o refresh
+        setTimeout(() => {
+            setRefreshing(false);
+        }, 1000);
+    };
+
     return (
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
+        <ScrollView 
+            style={styles.container} 
+            contentContainerStyle={{ paddingBottom: 32 }}
+            refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+        >
             <View style={styles.headerRow}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <ArrowLeft size={24} color="#18181B" />
@@ -91,7 +136,29 @@ export default function AdDetailScreen() {
                 </View>
             </View>
 
+            {/* Botão de Avaliar */}
+            {user && user.id !== ad.authorId && (
+                <View style={styles.ratingButtonContainer}>
+                    <TouchableOpacity style={styles.ratingButton} onPress={handleRatePress}>
+                        <Star size={20} color="#FFF" />
+                        <Text style={styles.ratingButtonText}>Avaliar este anúncio</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
             <SellerCard seller={ad.authorDetails} />
+            
+            {/* Lista de Avaliações */}
+            <RatingList adId={ad._id} key={refreshRatings} />
+
+            {/* Modal de Avaliação */}
+            <RatingModal
+                visible={showRatingModal}
+                onClose={() => setShowRatingModal(false)}
+                adId={ad._id}
+                adTitle={ad.title}
+                onRatingSubmitted={handleRatingSubmitted}
+            />
         </ScrollView>
     );
 }
@@ -147,4 +214,23 @@ const styles = StyleSheet.create({
     sellerContactContainer: { borderTopWidth: 1, borderColor: '#F3F4F6', paddingTop: 8 },
     sellerContactRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
     sellerContactText: { color: '#3F3F46', fontSize: 14, marginLeft: 8 },
+    
+    ratingButtonContainer: {
+        paddingHorizontal: 16,
+        marginBottom: 8,
+    },
+    ratingButton: {
+        backgroundColor: '#007AFF',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        borderRadius: 12,
+        gap: 8,
+    },
+    ratingButtonText: {
+        color: '#FFF',
+        fontSize: 16,
+        fontWeight: '600',
+    },
 });

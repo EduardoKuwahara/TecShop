@@ -1,9 +1,10 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Alert, TouchableOpacity, TextInput } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Search, X } from 'lucide-react-native';
 import AdCard from '../components/Home/AdCard';
+import { useFavorites } from '../contexts/FavoritesContext';
 
 type Ad = {
   _id: string;
@@ -17,9 +18,12 @@ type Ad = {
     nome: string;
     curso: string;
   };
+  isFavorite?: boolean;
+  averageRating?: number;
+  ratingCount?: number;
 };
 
-const IP_DA_SUA_MAQUINA = '192.168.15.5';
+const IP_DA_SUA_MAQUINA = '10.226.241.139';
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
@@ -29,6 +33,7 @@ export default function HomeScreen() {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [searchVisible, setSearchVisible] = useState(false);
+  const { favorites, toggleFavorite, isFavorite } = useFavorites();
 
   const fetchAds = async (query = '') => {
     setLoading(true);
@@ -38,7 +43,12 @@ export default function HomeScreen() {
       const data = await response.json();
       
       if (response.ok) {
-        setAds(data);
+        // Marcar anúncios favoritos
+        const adsWithFavorites = data.map((ad: Ad) => ({
+          ...ad,
+          isFavorite: isFavorite(ad._id)
+        }));
+        setAds(adsWithFavorites);
       } else {
         Alert.alert('Erro', 'Não foi possível carregar os anúncios.');
       }
@@ -53,7 +63,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchAds(searchQuery);
-    }, [searchQuery])
+    }, [searchQuery, favorites])
   );
 
   const onRefresh = () => {
@@ -65,6 +75,8 @@ export default function HomeScreen() {
     setSearchVisible(false);
     setSearchQuery('');
   };
+
+
 
   const categoryImages: Record<string, string> = {
     'Comida': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80',
@@ -127,6 +139,10 @@ export default function HomeScreen() {
               time={item.availableUntil}
               author={item.authorDetails?.nome || 'Autor desconhecido'}
               onPress={() => navigation.navigate('AdDetail', { ad: item })}
+              isFavorite={item.isFavorite}
+              onToggleFavorite={() => toggleFavorite(item._id)}
+              averageRating={item.averageRating || 0}
+              ratingCount={item.ratingCount || 0}
             />
           )}
           style={styles.scroll}

@@ -32,6 +32,7 @@ interface User {
     createdAt: Date;
     role: 'user' | 'admin';
     status?: 'active' | 'inactive';
+    favorites?: string[];
 }
 
 interface Anuncio {
@@ -45,6 +46,14 @@ interface Anuncio {
     authorId: ObjectId;
     createdAt: Date;
     status: 'active' | 'sold' | 'expired';
+    ratings?: {
+        userId: string;
+        rating: number;
+        comment?: string;
+        createdAt: Date;
+    }[];
+    averageRating?: number;
+    ratingCount?: number;
 }
 
 const client = new MongoClient(MONGO_URI);
@@ -316,6 +325,234 @@ app.patch('/admin/users/:id', authMiddleware, adminAuthMiddleware, async (req, r
 
     } catch (error) {
         res.status(500).json({ error: 'Erro ao atualizar usuário.' });
+    }
+});
+
+// Rotas de Favoritos
+app.get('/user/favorites', authMiddleware, async (req: any, res: Response) => {
+    try {
+        const userId = req.user.id;
+        const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+        
+        if (!user) {
+            return res.status(404).json({ error: 'Usuário não encontrado.' });
+        }
+
+        const favorites = user.favorites || [];
+        res.json(favorites);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao buscar favoritos.' });
+    }
+});
+
+app.post('/user/favorites/:adId', authMiddleware, async (req: any, res: Response) => {
+    try {
+        const userId = req.user.id;
+        const { adId } = req.params;
+
+        if (!ObjectId.isValid(adId)) {
+            return res.status(400).json({ error: 'ID de anúncio inválido.' });
+        }
+
+        // Verificar se o anúncio existe
+        const ad = await anunciosCollection.findOne({ _id: new ObjectId(adId) });
+        if (!ad) {
+            return res.status(404).json({ error: 'Anúncio não encontrado.' });
+        }
+
+        // Adicionar aos favoritos (sem duplicatas)
+        const result = await usersCollection.updateOne(
+            { _id: new ObjectId(userId) },
+            { $addToSet: { favorites: adId } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Usuário não encontrado.' });
+        }
+
+        res.json({ message: 'Anúncio adicionado aos favoritos.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao adicionar favorito.' });
+    }
+});
+
+app.delete('/user/favorites/:adId', authMiddleware, async (req: any, res: Response) => {
+    try {
+        const userId = req.user.id;
+        const { adId } = req.params;
+
+        const result = await usersCollection.updateOne(
+            { _id: new ObjectId(userId) },
+            { $pull: { favorites: adId } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Usuário não encontrado.' });
+        }
+
+        res.json({ message: 'Anúncio removido dos favoritos.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao remover favorito.' });
+    }
+});
+
+// Rotas de Avaliações
+app.post('/ads/:adId/ratings', authMiddleware, async (req: any, res: Response) => {
+    try {
+        const userId = req.user.id;
+        const { adId } = req.params;
+        const { rating, comment } = req.body;
+
+        // Validações
+        if (!ObjectId.isValid(adId)) {
+            return res.status(400).json({ error: 'ID de anúncio inválido.' });
+        }
+
+        if (!rating || rating < 1 || rating > 5) {
+            return res.status(400).json({ error: 'Avaliação deve ser entre 1 e 5.' });
+        }
+
+        // Verificar se o anúncio existe
+        const ad = await anunciosCollection.findOne({ _id: new ObjectId(adId) });
+        if (!ad) {
+            return res.status(404).json({ error: 'Anúncio não encontrado.' });
+        }
+
+        // Não permitir avaliar próprio anúncio
+        if (ad.authorId.toString() === userId) {
+            return res.status(400).json({ error: 'Você não pode avaliar seu próprio anúncio.' });
+        }
+
+        const newRating = {
+            userId,
+            rating: Number(rating),
+            comment: comment || '',
+            createdAt: new Date()
+        };
+
+        // Remover avaliação anterior do mesmo usuário e adicionar nova
+        await anunciosCollection.updateOne(
+            { _id: new ObjectId(adId) },
+            { $pull: { ratings: { userId } } }
+        );
+
+        const result = await anunciosCollection.updateOne(
+            { _id: new ObjectId(adId) },
+            { $push: { ratings: newRating } }
+        );
+
+        // Recalcular média e contagem de avaliações
+        const updatedAd = await anunciosCollection.findOne({ _id: new ObjectId(adId) });
+        if (updatedAd && updatedAd.ratings) {
+            const totalRatings = updatedAd.ratings.length;
+            const sumRatings = updatedAd.ratings.reduce((sum, r) => sum + r.rating, 0);
+            const averageRating = totalRatings > 0 ? sumRatings / totalRatings : 0;
+
+            await anunciosCollection.updateOne(
+                { _id: new ObjectId(adId) },
+                { 
+                    $set: { 
+                        averageRating: Math.round(averageRating * 10) / 10,
+                        ratingCount: totalRatings
+                    }
+                }
+            );
+        }
+
+        res.json({ message: 'Avaliação adicionada com sucesso.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao adicionar avaliação.' });
+    }
+});
+
+app.get('/ads/:adId/ratings', async (req, res) => {
+    try {
+        const { adId } = req.params;
+
+        if (!ObjectId.isValid(adId)) {
+            return res.status(400).json({ error: 'ID de anúncio inválido.' });
+        }
+
+        const ad = await anunciosCollection.findOne({ _id: new ObjectId(adId) });
+        if (!ad) {
+            return res.status(404).json({ error: 'Anúncio não encontrado.' });
+        }
+
+        const ratings = ad.ratings || [];
+        const averageRating = ad.averageRating || 0;
+        const ratingCount = ad.ratingCount || 0;
+
+        res.json({
+            ratings,
+            averageRating,
+            ratingCount
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao buscar avaliações.' });
+    }
+});
+
+app.get('/user/ratings', authMiddleware, async (req: any, res: Response) => {
+    try {
+        const userId = req.user.id;
+
+        // Buscar todas as avaliações feitas pelo usuário
+        const adsWithUserRatings = await anunciosCollection.find({
+            'ratings.userId': userId
+        }).toArray();
+
+        const userRatings = adsWithUserRatings.map(ad => {
+            const userRating = ad.ratings?.find(r => r.userId === userId);
+            return {
+                adId: ad._id,
+                adTitle: ad.title,
+                rating: userRating?.rating,
+                comment: userRating?.comment,
+                createdAt: userRating?.createdAt
+            };
+        });
+
+        res.json(userRatings);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao buscar suas avaliações.' });
+    }
+});
+
+app.delete('/ads/:adId/ratings', authMiddleware, async (req: any, res: Response) => {
+    try {
+        const userId = req.user.id;
+        const { adId } = req.params;
+
+        if (!ObjectId.isValid(adId)) {
+            return res.status(400).json({ error: 'ID de anúncio inválido.' });
+        }
+
+        const result = await anunciosCollection.updateOne(
+            { _id: new ObjectId(adId) },
+            { $pull: { ratings: { userId } } }
+        );
+
+        // Recalcular média e contagem de avaliações
+        const updatedAd = await anunciosCollection.findOne({ _id: new ObjectId(adId) });
+        if (updatedAd && updatedAd.ratings) {
+            const totalRatings = updatedAd.ratings.length;
+            const sumRatings = updatedAd.ratings.reduce((sum, r) => sum + r.rating, 0);
+            const averageRating = totalRatings > 0 ? sumRatings / totalRatings : 0;
+
+            await anunciosCollection.updateOne(
+                { _id: new ObjectId(adId) },
+                { 
+                    $set: { 
+                        averageRating: Math.round(averageRating * 10) / 10,
+                        ratingCount: totalRatings
+                    }
+                }
+            );
+        }
+
+        res.json({ message: 'Avaliação removida com sucesso.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao remover avaliação.' });
     }
 });
 

@@ -1,19 +1,36 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Heart } from 'lucide-react-native';
 
 export type FavoritesCardProps = {
   savedCount: number;
+  onViewFavorites?: () => void;
 };
 
-export default function FavoritesCard({ savedCount }: FavoritesCardProps) {
+export default function FavoritesCard({ savedCount, onViewFavorites }: FavoritesCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        <Heart color="#FFA800" size={22} />
-        <Text style={styles.headerText}>Favoritos</Text>
+        <Heart color="#FF3B30" size={22} fill="#FF3B30" />
+        <Text style={styles.headerText}>Meus Favoritos</Text>
       </View>
-      <Text style={styles.countText}>Itens salvos: <Text style={styles.bold}>{savedCount}</Text></Text>
+      <View style={styles.countRow}>
+        <Text style={styles.countText}>
+          {savedCount === 0 
+            ? 'Nenhum anúncio favoritado' 
+            : `${savedCount} ${savedCount === 1 ? 'anúncio favoritado' : 'anúncios favoritados'}`
+          }
+        </Text>
+      </View>
+      <TouchableOpacity 
+        style={[styles.button, savedCount === 0 && styles.buttonDisabled]} 
+        onPress={onViewFavorites}
+        disabled={savedCount === 0}
+      >
+        <Text style={[styles.buttonText, savedCount === 0 && styles.buttonTextDisabled]}>
+          {savedCount === 0 ? 'Nenhum favorito' : 'Ver meus favoritos'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -42,11 +59,31 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     color: '#18181B',
   },
+  countRow: {
+    marginBottom: 12,
+  },
   countText: {
-    color: '#18181B',
-    fontSize: 15,
+    color: '#52525B',
+    fontSize: 14,
   },
   bold: {
     fontWeight: 'bold',
+  },
+  button: {
+    backgroundColor: '#FF3B30',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  buttonDisabled: {
+    backgroundColor: '#F3F4F6',
+  },
+  buttonTextDisabled: {
+    color: '#A3A3A3',
   },
 });
