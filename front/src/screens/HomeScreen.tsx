@@ -11,6 +11,9 @@ type Ad = {
   _id: string;
   title: string;
   price: string;
+  originalPrice?: string;
+  promotionActive?: boolean;
+  promotionLabel?: string;
   description: string;
   location: string;
   availableUntil: string;
@@ -134,6 +137,9 @@ export default function HomeScreen() {
               imageUrl={getImageUrl(item.category)}
               title={item.title}
               price={item.price}
+              originalPrice={item.originalPrice}
+              isPromoted={item.promotionActive}
+              promotionLabel={item.promotionLabel}
               description={`${item.description} / ${item.location}`}
               time={item.availableUntil}
               author={item.authorDetails?.nome || 'Autor desconhecido'}

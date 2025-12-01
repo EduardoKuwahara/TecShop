@@ -47,6 +47,9 @@ type Ad = {
   category: string;
   imageUrl?: string;
   availableUntil?: string;
+  originalPrice?: string;
+  promotionActive?: boolean;
+  promotionLabel?: string;
 };
 type TabValue = 'all' | 'active' | 'sold' | 'expired';
 
@@ -198,6 +201,49 @@ export default function MyAdsScreen() {
 
   const filteredAds = ads.filter(ad => selectedTab === 'all' || ad.status === selectedTab);
 
+  const togglePromotion = async (ad: Ad) => {
+    if (!token) {
+      Alert.alert('Erro', 'Sessão inválida.');
+      return;
+    }
+
+    try {
+      const isActive = ad.promotionActive;
+      const method = isActive ? 'DELETE' : 'POST';
+      const url = `${API_BASE_URL}/ads/${ad._id}/promotion`;
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: !isActive
+          ? JSON.stringify({
+              label: 'Em promoção',
+            })
+          : undefined,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao atualizar promoção.');
+      }
+
+      setAds(currentAds =>
+        currentAds.map(a => (a._id === ad._id ? data : a))
+      );
+
+      Alert.alert(
+        'Sucesso',
+        isActive ? 'Promoção removida do anúncio.' : 'Anúncio marcado como em promoção.'
+      );
+    } catch (e: any) {
+      console.error('Erro ao alternar promoção:', e);
+      Alert.alert('Erro', e.message || 'Não foi possível atualizar a promoção.');
+    }
+  };
+
   const renderAdCard = ({ item }: { item: Ad }) => {
     const formattedDate = item.availableUntil 
       ? new Date(item.availableUntil).toLocaleString('pt-BR', {
@@ -221,6 +267,11 @@ export default function MyAdsScreen() {
               </Text>
             </View>
           </View>
+          {item.promotionActive && (
+            <Text style={styles.promoLabel}>
+              {item.promotionLabel || 'Em promoção'} {item.originalPrice ? `(de ${item.originalPrice})` : ''}
+            </Text>
+          )}
           <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
           <Text style={styles.cardLocation}>Local: {item.location || '-'}</Text>
           <Text style={styles.cardDate}>Disponível até: {formattedDate}</Text>
@@ -235,6 +286,11 @@ export default function MyAdsScreen() {
                 <Text style={styles.actionRenew}>Renovar</Text>
               </TouchableOpacity>
             )}
+            <TouchableOpacity onPress={() => togglePromotion(item)}>
+              <Text style={styles.actionPromo}>
+                {item.promotionActive ? 'Remover promoção' : 'Marcar promoção'}
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => handleDelete(item._id)}>
               <Text style={styles.actionDelete}>Excluir</Text>
             </TouchableOpacity>
@@ -326,9 +382,11 @@ const styles = StyleSheet.create({
     cardDate: { color: '#52525B', fontSize: 13, marginTop: 4, fontStyle: 'italic' },
     priceTag: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 2, alignSelf: 'flex-start' },
     priceText: { fontWeight: 'bold', fontSize: 15 },
+    promoLabel: { marginTop: 4, color: '#DC2626', fontWeight: '600', fontSize: 13 },
     actionsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10 },
     actionEdit: { color: '#FFA800', fontWeight: 'bold', marginRight: 16, fontSize: 15 },
     actionRenew: { color: '#FFA800', fontWeight: 'bold', marginRight: 16, fontSize: 15 },
+    actionPromo: { color: '#2563EB', fontWeight: 'bold', marginRight: 16, fontSize: 15 },
     actionDelete: { color: '#EF4444', fontWeight: 'bold', marginLeft: 'auto', fontSize: 15 },
     modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
     modalContent: { width: '90%', maxHeight: '85%', backgroundColor: '#fff', borderRadius: 12, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5 },

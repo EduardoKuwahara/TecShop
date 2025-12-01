@@ -8,6 +8,9 @@ export type AdCardProps = {
   imageUrl: string;
   title: string;
   price: string;
+  originalPrice?: string;
+  isPromoted?: boolean;
+  promotionLabel?: string;
   description: string;
   time: string; 
   author: string;
@@ -23,6 +26,9 @@ export default function AdCard({
   imageUrl, 
   title, 
   price, 
+  originalPrice,
+  isPromoted = false,
+  promotionLabel,
   description, 
   time, 
   author, 
@@ -52,8 +58,18 @@ export default function AdCard({
           <Text style={styles.cardTitle} numberOfLines={1} ellipsizeMode="tail">
             {title}
           </Text>
-          <View style={styles.priceTag}><Text style={styles.priceText}>{price}</Text></View>
+          <View style={[styles.priceTag, isPromoted && styles.priceTagPromoted]}>
+            <Text style={styles.priceText}>{price}</Text>
+          </View>
         </View>
+        {isPromoted && (
+          <View style={styles.promoRow}>
+            {originalPrice && (
+              <Text style={styles.originalPriceText}>{originalPrice}</Text>
+            )}
+            <Text style={styles.promoBadge}>{promotionLabel || 'Em promoção'}</Text>
+          </View>
+        )}
         <Text style={styles.cardDesc} numberOfLines={2}>{description}</Text>
         
         {/* Seção de Avaliações */}
@@ -163,6 +179,26 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 13,
+  },
+  priceTagPromoted: {
+    backgroundColor: '#DC2626',
+  },
+  promoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  originalPriceText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
+  },
+  promoBadge: {
+    fontSize: 12,
+    color: '#DC2626',
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   cardDesc: {
     color: '#52525B',

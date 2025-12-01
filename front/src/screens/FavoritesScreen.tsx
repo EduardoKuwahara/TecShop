@@ -9,6 +9,9 @@ type Ad = {
   _id: string;
   title: string;
   price: string;
+  originalPrice?: string;
+  promotionActive?: boolean;
+  promotionLabel?: string;
   description: string;
   location: string;
   availableUntil: string;

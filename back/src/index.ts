@@ -49,6 +49,11 @@ interface Anuncio {
     }[];
     averageRating?: number;
     ratingCount?: number;
+    // Promoções
+    promotionActive?: boolean;
+    promotionLabel?: string;
+    promotionExpiresAt?: string;
+    originalPrice?: string;
 }
 
 interface Report {
@@ -772,6 +777,97 @@ app.patch('/api/admin/reports/:reportId', authMiddleware, adminAuthMiddleware, a
     } catch (error) {
         console.error('Erro ao atualizar denúncia:', error);
         res.status(500).json({ error: 'Erro ao atualizar denúncia.' });
+    }
+});
+
+// Rotas de Promoções de Anúncios (usuário dono do anúncio ou admin)
+app.post('/api/ads/:adId/promotion', authMiddleware, async (req: any, res: Response) => {
+    try {
+        const userId = req.user.id;
+        const userRole = req.user.role;
+        const { adId } = req.params;
+        const { label, expiresAt } = req.body as { label?: string; expiresAt?: string };
+
+        if (!ObjectId.isValid(adId)) {
+            return res.status(400).json({ error: 'ID de anúncio inválido.' });
+        }
+
+        const ad = await anunciosCollection.findOne({ _id: new ObjectId(adId) });
+        if (!ad) {
+            return res.status(404).json({ error: 'Anúncio não encontrado.' });
+        }
+
+        // Permitir apenas para o dono do anúncio ou administradores
+        if (ad.authorId.toString() !== userId && userRole !== 'admin') {
+            return res.status(403).json({ error: 'Acesso negado. Você não pode promover este anúncio.' });
+        }
+
+        const updateFields: Partial<Anuncio> = {
+            promotionActive: true,
+            promotionLabel: label && label.trim() !== '' ? label.trim() : 'Em promoção',
+        };
+
+        if (expiresAt) {
+            const expiresDate = new Date(expiresAt);
+            if (isNaN(expiresDate.getTime())) {
+                return res.status(400).json({ error: 'Data de expiração inválida.' });
+            }
+            updateFields.promotionExpiresAt = expiresDate.toISOString();
+        }
+
+        // Se ainda não há preço original salvo, guarda o atual
+        if (!ad.originalPrice) {
+            updateFields.originalPrice = ad.price;
+        }
+
+        await anunciosCollection.updateOne(
+            { _id: new ObjectId(adId) },
+            { $set: updateFields }
+        );
+
+        const updatedAd = await anunciosCollection.findOne({ _id: new ObjectId(adId) });
+        res.status(200).json(updatedAd);
+    } catch (error) {
+        console.error('Erro ao ativar promoção:', error);
+        res.status(500).json({ error: 'Erro ao ativar promoção.' });
+    }
+});
+
+app.delete('/api/ads/:adId/promotion', authMiddleware, async (req: any, res: Response) => {
+    try {
+        const userId = req.user.id;
+        const userRole = req.user.role;
+        const { adId } = req.params;
+
+        if (!ObjectId.isValid(adId)) {
+            return res.status(400).json({ error: 'ID de anúncio inválido.' });
+        }
+
+        const ad = await anunciosCollection.findOne({ _id: new ObjectId(adId) });
+        if (!ad) {
+            return res.status(404).json({ error: 'Anúncio não encontrado.' });
+        }
+
+        if (ad.authorId.toString() !== userId && userRole !== 'admin') {
+            return res.status(403).json({ error: 'Acesso negado. Você não pode remover a promoção deste anúncio.' });
+        }
+
+        const updateFields: Partial<Anuncio> = {
+            promotionActive: false,
+            promotionLabel: undefined,
+            promotionExpiresAt: undefined,
+        };
+
+        await anunciosCollection.updateOne(
+            { _id: new ObjectId(adId) },
+            { $set: updateFields }
+        );
+
+        const updatedAd = await anunciosCollection.findOne({ _id: new ObjectId(adId) });
+        res.status(200).json(updatedAd);
+    } catch (error) {
+        console.error('Erro ao remover promoção:', error);
+        res.status(500).json({ error: 'Erro ao remover promoção.' });
     }
 });
 
