@@ -11,14 +11,9 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
-const MONGO_URI = process.env.MONGO_URI;
-const DB_NAME = process.env.DB_NAME;
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!MONGO_URI || !DB_NAME || !JWT_SECRET) {
-    throw new Error('Variáveis de ambiente essenciais não foram definidas no arquivo .env');
-}
-
+const BASE_URL = process.env.BASE_URL || process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}` 
+    : `http://localhost:${PORT}`;
 
 interface User {
     _id?: ObjectId;
@@ -56,26 +51,90 @@ interface Anuncio {
     ratingCount?: number;
 }
 
-const client = new MongoClient(MONGO_URI);
+// Cache global de conexão MongoDB para serverless (Vercel)
+let cachedClient: MongoClient | null = null;
+let cachedDb: ReturnType<MongoClient['db']> | null = null;
 let usersCollection: Collection<User>;
 let anunciosCollection: Collection<Anuncio>;
 
-const startServer = async () => {
+// Função helper para obter variáveis de ambiente com mensagem de erro clara
+const getEnvVar = (name: string): string => {
+    const value = process.env[name];
+    if (!value) {
+        throw new Error(`Variável de ambiente ${name} não foi definida. Configure no painel do Vercel (Settings > Environment Variables).`);
+    }
+    return value;
+};
+
+// Inicialização do banco de dados otimizada para serverless
+const connectToDatabase = async () => {
     try {
+        // Reutilizar conexão existente se disponível (cache para serverless)
+        if (cachedClient && cachedDb) {
+            return { 
+                client: cachedClient, 
+                db: cachedDb, 
+                usersCollection, 
+                anunciosCollection 
+            };
+        }
+
+        const MONGODB_URI = getEnvVar('MONGO_URI');
+        const DB_NAME = getEnvVar('DB_NAME');
+
+        const client = new MongoClient(MONGODB_URI, {
+            maxPoolSize: 10,
+            minPoolSize: 0,
+            maxIdleTimeMS: 30000,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+        });
+
         await client.connect();
-        console.log('✅ Conectado ao MongoDB com sucesso!');
         const db = client.db(DB_NAME);
         usersCollection = db.collection<User>('users');
         anunciosCollection = db.collection<Anuncio>('anuncios');
-        app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+
+        // Cache das conexões
+        cachedClient = client;
+        cachedDb = db;
+
+        return { 
+            client, 
+            db, 
+            usersCollection, 
+            anunciosCollection 
+        };
     } catch (error) {
         console.error('❌ Erro ao conectar ao MongoDB:', error);
-        process.exit(1);
+        throw error;
     }
 };
 
+// Middleware para conectar ao banco antes de cada request (serverless-friendly)
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        await connectToDatabase();
+        next();
+    } catch (error: any) {
+        console.error('Erro no middleware de conexão:', error);
+        res.status(500).json({ 
+            error: error.message || 'Erro de conexão com o banco de dados',
+            hint: 'Verifique se as variáveis de ambiente MONGODB_URI e DB_NAME estão configuradas no Vercel.'
+        });
+    }
+});
 
-app.post('/register', async (req: Request, res: Response) => {
+app.get('/api/health', (req: Request, res: Response) => {
+    res.json({ 
+        status: 'ok', 
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
+
+
+app.post('/api/register', async (req: Request, res: Response) => {
     try {
         const { nome, curso, periodo, contato, sala, email, senha } = req.body;
         if (!nome || !curso || !periodo || !contato || !email || !senha) {
@@ -98,7 +157,7 @@ app.post('/register', async (req: Request, res: Response) => {
     }
 });
 
-app.post('/login', async (req: Request, res: Response) => {
+app.post('/api/login', async (req: Request, res: Response) => {
     try {
         const { email, senha } = req.body;
         if (!email || !senha) return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
@@ -106,8 +165,14 @@ app.post('/login', async (req: Request, res: Response) => {
         if (!user) return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
         const isPasswordCorrect = await bcrypt.compare(senha, user.senha);
         if (!isPasswordCorrect) return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
+        
+        const JWT_SECRET = process.env.JWT_SECRET;
+        if (!JWT_SECRET) {
+            return res.status(500).json({ error: 'Configuração do servidor incompleta.' });
+        }
+        
         const payload = { userId: user._id, role: user.role };
-        const token = jwt.sign(payload, JWT_SECRET as string, { expiresIn: '8h' });
+        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
         res.status(200).json({
             message: 'Login bem-sucedido!',
             token,
@@ -128,7 +193,7 @@ app.post('/login', async (req: Request, res: Response) => {
     }
 });
 
-app.patch('/profile', authMiddleware, async (req: Request, res: Response) => {
+app.patch('/api/profile', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.user?.id;
         if (!userId) return res.status(401).json({ error: 'Usuário não autenticado.' });
@@ -161,7 +226,7 @@ app.patch('/profile', authMiddleware, async (req: Request, res: Response) => {
     }
 });
 
-app.post('/ads', authMiddleware, async (req: Request, res: Response) => {
+app.post('/api/ads', authMiddleware, async (req: Request, res: Response) => {
     try {
         const authorId = req.user?.id;
         if (!authorId) return res.status(401).json({ error: 'Usuário não autenticado.' });
@@ -178,7 +243,7 @@ app.post('/ads', authMiddleware, async (req: Request, res: Response) => {
     }
 });
 
-app.get('/ads', async (req: Request, res: Response) => {
+app.get('/api/ads', async (req: Request, res: Response) => {
     try {
 
         const { search } = req.query;
@@ -206,7 +271,35 @@ app.get('/ads', async (req: Request, res: Response) => {
     }
 });
 
-app.get('/my-ads', authMiddleware, async (req: Request, res: Response) => {
+app.get('/api/ads/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'ID de anúncio inválido.' });
+        }
+
+        const pipeline = [
+            { $match: { _id: new ObjectId(id) } },
+            { $lookup: { from: 'users', localField: 'authorId', foreignField: '_id', as: 'authorDetails' } },
+            { $unwind: '$authorDetails' },
+            { $project: { 'authorDetails.senha': 0, 'authorDetails.createdAt': 0, 'authorId': 0 } }
+        ];
+
+        const ad = await anunciosCollection.aggregate(pipeline).toArray();
+        
+        if (ad.length === 0) {
+            return res.status(404).json({ error: 'Anúncio não encontrado.' });
+        }
+
+        res.status(200).json(ad[0]);
+    } catch (error) {
+        console.error('Erro ao buscar anúncio:', error);
+        res.status(500).json({ error: 'Erro ao buscar anúncio.' });
+    }
+});
+
+app.get('/api/my-ads', authMiddleware, async (req: Request, res: Response) => {
     try {
         const userId = req.user?.id;
         if (!userId) return res.status(401).json({ error: 'Usuário não autenticado.' });
@@ -218,7 +311,7 @@ app.get('/my-ads', authMiddleware, async (req: Request, res: Response) => {
     }
 });
 
-app.put('/ads/:id', authMiddleware, async (req: Request, res: Response) => {
+app.put('/api/ads/:id', authMiddleware, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const userId = req.user?.id;
@@ -250,7 +343,7 @@ app.put('/ads/:id', authMiddleware, async (req: Request, res: Response) => {
     }
 });
 
-app.delete('/ads/:id', authMiddleware, async (req: Request, res: Response) => {
+app.delete('/api/ads/:id', authMiddleware, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const userId = req.user?.id;
@@ -270,7 +363,7 @@ app.delete('/ads/:id', authMiddleware, async (req: Request, res: Response) => {
     }
 });
 
-app.get('/admin/users',
+app.get('/api/admin/users',
     authMiddleware,
     adminAuthMiddleware,
     async (req: Request, res: Response) => {
@@ -283,7 +376,7 @@ app.get('/admin/users',
     }
 );
 
-app.delete('/admin/users/:id', authMiddleware, adminAuthMiddleware, async (req, res) => {
+app.delete('/api/admin/users/:id', authMiddleware, adminAuthMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
         if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'ID de usuário inválido.' });
@@ -298,7 +391,7 @@ app.delete('/admin/users/:id', authMiddleware, adminAuthMiddleware, async (req, 
 });
 
 
-app.patch('/admin/users/:id', authMiddleware, adminAuthMiddleware, async (req, res) => {
+app.patch('/api/admin/users/:id', authMiddleware, adminAuthMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
         if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'ID de usuário inválido.' });
@@ -329,7 +422,7 @@ app.patch('/admin/users/:id', authMiddleware, adminAuthMiddleware, async (req, r
 });
 
 // Rotas de Favoritos
-app.get('/user/favorites', authMiddleware, async (req: any, res: Response) => {
+app.get('/api/user/favorites', authMiddleware, async (req: any, res: Response) => {
     try {
         const userId = req.user.id;
         const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
@@ -345,7 +438,7 @@ app.get('/user/favorites', authMiddleware, async (req: any, res: Response) => {
     }
 });
 
-app.post('/user/favorites/:adId', authMiddleware, async (req: any, res: Response) => {
+app.post('/api/user/favorites/:adId', authMiddleware, async (req: any, res: Response) => {
     try {
         const userId = req.user.id;
         const { adId } = req.params;
@@ -376,7 +469,7 @@ app.post('/user/favorites/:adId', authMiddleware, async (req: any, res: Response
     }
 });
 
-app.delete('/user/favorites/:adId', authMiddleware, async (req: any, res: Response) => {
+app.delete('/api/user/favorites/:adId', authMiddleware, async (req: any, res: Response) => {
     try {
         const userId = req.user.id;
         const { adId } = req.params;
@@ -397,7 +490,7 @@ app.delete('/user/favorites/:adId', authMiddleware, async (req: any, res: Respon
 });
 
 // Rotas de Avaliações
-app.post('/ads/:adId/ratings', authMiddleware, async (req: any, res: Response) => {
+app.post('/api/ads/:adId/ratings', authMiddleware, async (req: any, res: Response) => {
     try {
         const userId = req.user.id;
         const { adId } = req.params;
@@ -465,7 +558,7 @@ app.post('/ads/:adId/ratings', authMiddleware, async (req: any, res: Response) =
     }
 });
 
-app.get('/ads/:adId/ratings', async (req, res) => {
+app.get('/api/ads/:adId/ratings', async (req, res) => {
     try {
         const { adId } = req.params;
 
@@ -492,7 +585,7 @@ app.get('/ads/:adId/ratings', async (req, res) => {
     }
 });
 
-app.get('/user/ratings', authMiddleware, async (req: any, res: Response) => {
+app.get('/api/user/ratings', authMiddleware, async (req: any, res: Response) => {
     try {
         const userId = req.user.id;
 
@@ -518,7 +611,7 @@ app.get('/user/ratings', authMiddleware, async (req: any, res: Response) => {
     }
 });
 
-app.delete('/ads/:adId/ratings', authMiddleware, async (req: any, res: Response) => {
+app.delete('/api/ads/:adId/ratings', authMiddleware, async (req: any, res: Response) => {
     try {
         const userId = req.user.id;
         const { adId } = req.params;
@@ -556,4 +649,24 @@ app.delete('/ads/:adId/ratings', authMiddleware, async (req: any, res: Response)
     }
 });
 
-startServer();
+// Iniciar servidor apenas para desenvolvimento local
+// No Vercel, o app é exportado como serverless function
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    const startServer = async () => {
+        try {
+            await connectToDatabase();
+            app.listen(Number(PORT), '0.0.0.0', () => {
+                console.log(`🚀 Servidor rodando na porta ${PORT}`);
+                console.log(`🌐 URL base configurada: ${BASE_URL}`);
+                console.log(`📱 Para acesso externo, use: ngrok http ${PORT}`);
+            });
+        } catch (error) {
+            console.error('❌ Erro ao iniciar servidor:', error);
+            process.exit(1);
+        }
+    };
+    startServer();
+}
+
+// Exportar app para Vercel (serverless)
+export default app;

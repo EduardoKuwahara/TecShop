@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { Clock, Heart, Star } from 'lucide-react-native';
+import { Clock, Heart, Star, Share2 } from 'lucide-react-native';
 import { RatingStars } from '../RatingStars';
+import { ShareModal } from '../ShareModal';
 
 export type AdCardProps = {
   imageUrl: string;
@@ -15,6 +16,7 @@ export type AdCardProps = {
   onToggleFavorite?: () => void;
   averageRating?: number;
   ratingCount?: number;
+  adId?: string;
 };
 
 export default function AdCard({ 
@@ -28,8 +30,10 @@ export default function AdCard({
   isFavorite = false, 
   onToggleFavorite,
   averageRating = 0,
-  ratingCount = 0
+  ratingCount = 0,
+  adId
 }: AdCardProps) {
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const formattedTime = new Date(time).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -84,6 +88,30 @@ export default function AdCard({
             fill={isFavorite ? "#FF3B30" : "transparent"}
           />
         </TouchableOpacity>
+      )}
+      
+      {/* Botão de Compartilhar */}
+      {adId && (
+        <TouchableOpacity 
+          style={styles.shareButton}
+          onPress={() => setShowShareModal(true)}
+        >
+          <Share2 
+            size={18} 
+            color="#007AFF" 
+          />
+        </TouchableOpacity>
+      )}
+
+      {/* Modal de Compartilhamento */}
+      {adId && (
+        <ShareModal
+          visible={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          adId={adId}
+          adTitle={title}
+          adPrice={price}
+        />
       )}
     </View>
   );
@@ -186,5 +214,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
     fontWeight: '500',
+  },
+  shareButton: {
+    position: 'absolute',
+    top: 8,
+    right: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
 });

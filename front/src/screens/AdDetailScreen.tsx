@@ -1,9 +1,10 @@
 import React, { useState, useContext } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, RefreshControl } from 'react-native';
-import { Clock, MapPin, Mail, Phone, ArrowLeft, Star } from 'lucide-react-native';
+import { Clock, MapPin, Mail, Phone, ArrowLeft, Star, Share2 } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { RatingModal } from '../components/RatingModal';
 import { RatingList } from '../components/RatingList';
+import { ShareModal } from '../components/ShareModal';
 import { useAuth } from '../contexts/AuthContext';
 
 
@@ -47,6 +48,7 @@ export default function AdDetailScreen() {
     const [showRatingModal, setShowRatingModal] = useState(false);
     const [refreshRatings, setRefreshRatings] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
 
     const categoryImages: Record<string, string> = {
         'Comida': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80',
@@ -109,9 +111,10 @@ export default function AdDetailScreen() {
 
                 <Text style={styles.headerTitle}>Detalhes do Anúncio</Text>
 
-                {/* --- MUDANÇA APLICADA AQUI --- */}
-                {/* Esta View invisível equilibra o botão de voltar, centralizando o título */}
-                <View style={{ width: 24 }} />
+                {/* Botão de Compartilhar */}
+                <TouchableOpacity onPress={() => setShowShareModal(true)}>
+                    <Share2 size={24} color="#18181B" />
+                </TouchableOpacity>
 
             </View>
 
@@ -158,6 +161,15 @@ export default function AdDetailScreen() {
                 adId={ad._id}
                 adTitle={ad.title}
                 onRatingSubmitted={handleRatingSubmitted}
+            />
+
+            {/* Modal de Compartilhamento */}
+            <ShareModal
+                visible={showShareModal}
+                onClose={() => setShowShareModal(false)}
+                adId={ad._id}
+                adTitle={ad.title}
+                adPrice={ad.price}
             />
         </ScrollView>
     );

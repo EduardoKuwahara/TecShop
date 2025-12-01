@@ -143,6 +143,7 @@ export default function HomeScreen() {
               onToggleFavorite={() => toggleFavorite(item._id)}
               averageRating={item.averageRating || 0}
               ratingCount={item.ratingCount || 0}
+              adId={item._id}
             />
           )}
           style={styles.scroll}

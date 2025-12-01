@@ -1,12 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
 export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  const JWT_SECRET = process.env.JWT_SECRET;
+  
   if (!JWT_SECRET) {
-    throw new Error('A chave secreta JWT_SECRET não foi definida no arquivo .env');
+    return res.status(500).json({ 
+      error: 'Configuração do servidor incompleta. JWT_SECRET não definido.',
+      hint: 'Configure a variável de ambiente JWT_SECRET no painel do Vercel.'
+    });
   }
+  
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Acesso negado. Nenhum token fornecido.' });
