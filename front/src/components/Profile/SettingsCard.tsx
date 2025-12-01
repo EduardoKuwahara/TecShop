@@ -1,19 +1,26 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Settings, Shield, Bell, Lock, HelpCircle, ChevronRight } from 'lucide-react-native';
+import { Settings, Shield, Bell, Lock, HelpCircle, ChevronRight, FlagTriangleRight } from 'lucide-react-native';
 
 export type SettingsCardProps = {
   onNotifications?: () => void;
   onPrivacy?: () => void;
   onHelp?: () => void;
   onManageUsers?: () => void;
+  onManageReports?: () => void;
   isAdmin?: boolean;
 };
 
-export default function SettingsCard({ onNotifications, onPrivacy, onHelp, onManageUsers, isAdmin }: SettingsCardProps) {
+export default function SettingsCard({ onNotifications, onPrivacy, onHelp, onManageUsers, onManageReports, isAdmin }: SettingsCardProps) {
 
 
   const menuItems = [
+    {
+      label: 'Denúncias de Anúncios',
+      icon: FlagTriangleRight,
+      action: onManageReports,
+      adminOnly: true,
+    },
     {
       label: 'Gerenciar Usuários',
       icon: Shield,

@@ -56,6 +56,7 @@ export default function ProfileScreen() {
                 onHelp={() => {}}
                 isAdmin={user.role === 'admin'}
                 onManageUsers={() => navigation.navigate('ManageUsers')}
+                onManageReports={() => navigation.navigate('Reports')}
               />
             </>
           )}

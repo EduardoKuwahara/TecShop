@@ -1,11 +1,12 @@
 import React, { useState, useContext } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, RefreshControl } from 'react-native';
-import { Clock, MapPin, Mail, Phone, ArrowLeft, Star, Share2 } from 'lucide-react-native';
+import { Clock, MapPin, Mail, Phone, ArrowLeft, Star, Share2, Flag } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { RatingModal } from '../components/RatingModal';
 import { RatingList } from '../components/RatingList';
 import { ShareModal } from '../components/ShareModal';
 import { useAuth } from '../contexts/AuthContext';
+import { ReportModal } from '../components/ReportModal';
 
 
 type Seller = {
@@ -49,6 +50,7 @@ export default function AdDetailScreen() {
     const [refreshRatings, setRefreshRatings] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
 
     const categoryImages: Record<string, string> = {
         'Comida': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80',
@@ -84,6 +86,18 @@ export default function AdDetailScreen() {
     const handleRatingSubmitted = (rating: number, comment?: string) => {
         // Força a atualização da lista de avaliações
         setRefreshRatings(prev => prev + 1);
+    };
+
+    const handleReportPress = () => {
+        if (!user) {
+            Alert.alert('Login necessário', 'Você precisa estar logado para denunciar um anúncio.');
+            return;
+        }
+        if (user.id === ad.authorId) {
+            Alert.alert('Não permitido', 'Você não pode denunciar seu próprio anúncio.');
+            return;
+        }
+        setShowReportModal(true);
     };
 
     const onRefresh = () => {
@@ -139,15 +153,18 @@ export default function AdDetailScreen() {
                 </View>
             </View>
 
-            {/* Botão de Avaliar */}
-            {user && user.id !== ad.authorId && (
-                <View style={styles.ratingButtonContainer}>
+            <View style={styles.actionButtonsContainer}>
+                {user && user.id !== ad.authorId && (
                     <TouchableOpacity style={styles.ratingButton} onPress={handleRatePress}>
                         <Star size={20} color="#FFF" />
                         <Text style={styles.ratingButtonText}>Avaliar este anúncio</Text>
                     </TouchableOpacity>
-                </View>
-            )}
+                )}
+                <TouchableOpacity style={styles.reportButton} onPress={handleReportPress}>
+                    <Flag size={18} color="#FFF" />
+                    <Text style={styles.reportButtonText}>Denunciar</Text>
+                </TouchableOpacity>
+            </View>
 
             <SellerCard seller={ad.authorDetails} />
             
@@ -170,6 +187,12 @@ export default function AdDetailScreen() {
                 adId={ad._id}
                 adTitle={ad.title}
                 adPrice={ad.price}
+            />
+            <ReportModal
+                visible={showReportModal}
+                onClose={() => setShowReportModal(false)}
+                adId={ad._id}
+                adTitle={ad.title}
             />
         </ScrollView>
     );
@@ -227,11 +250,15 @@ const styles = StyleSheet.create({
     sellerContactRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
     sellerContactText: { color: '#3F3F46', fontSize: 14, marginLeft: 8 },
     
-    ratingButtonContainer: {
+    actionButtonsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
         paddingHorizontal: 16,
-        marginBottom: 8,
+        marginBottom: 12,
     },
     ratingButton: {
+        flex: 1,
         backgroundColor: '#007AFF',
         flexDirection: 'row',
         alignItems: 'center',
@@ -243,6 +270,21 @@ const styles = StyleSheet.create({
     ratingButtonText: {
         color: '#FFF',
         fontSize: 16,
+        fontWeight: '600',
+    },
+    reportButton: {
+        backgroundColor: '#EF4444',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 18,
+        borderRadius: 12,
+        gap: 6,
+    },
+    reportButtonText: {
+        color: '#FFF',
+        fontSize: 15,
         fontWeight: '600',
     },
 });

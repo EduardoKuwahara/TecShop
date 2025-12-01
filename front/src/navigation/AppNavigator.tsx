@@ -17,6 +17,7 @@ import ChatScreen from '../screens/ChatScreen';
 import ChatDetailScreen from '../screens/ChatDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ManageUsersScreen from '../screens/ManageUsersScreen';
+import ReportsScreen from '../screens/ReportsScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -63,6 +64,7 @@ export default function AppNavigator() {
           <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ headerShown: false }} />
           <Stack.Screen name="ChatDetail" component={ChatDetailScreen} options={{ headerShown: true, title: 'Conversa' }} />
           <Stack.Screen name="ManageUsers" component={ManageUsersScreen} options={{ headerShown: true, title: 'Gerenciar Usuários' }} />
+          <Stack.Screen name="Reports" component={ReportsScreen} options={{ headerShown: true, title: 'Denúncias de Anúncios' }} />
           <Stack.Screen name="AdDetail" component={AdDetailScreen} options={{ headerShown: true, title: '', headerBackVisible: false }} />
         </>
       ) : (
