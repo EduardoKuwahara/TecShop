@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { RatingStars } from './RatingStars';
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE_URL } from '../config';
 
 interface RatingModalProps {
     visible: boolean;
@@ -50,9 +51,9 @@ export const RatingModal: React.FC<RatingModalProps> = ({
             }
 
             console.log('Enviando avaliação com token:', token.substring(0, 20) + '...');
-            console.log('URL da requisição:', `http://10.226.241.139:3001/ads/${adId}/ratings`);
+            console.log('URL da requisição:', `${API_BASE_URL}/ads/${adId}/ratings`);
 
-            const response = await fetch(`http://10.226.241.139:3001/ads/${adId}/ratings`, {
+            const response = await fetch(`${API_BASE_URL}/ads/${adId}/ratings`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -7,6 +7,7 @@ import {
     TouchableOpacity
 } from 'react-native';
 import { RatingStars } from './RatingStars';
+import { API_BASE_URL } from '../config';
 
 interface Rating {
     userId: string;
@@ -32,7 +33,7 @@ export const RatingList: React.FC<RatingListProps> = ({ adId }) => {
 
     const fetchRatings = async () => {
         try {
-            const response = await fetch(`http://10.226.241.139:3001/ads/${adId}/ratings`);
+            const response = await fetch(`${API_BASE_URL}/ads/${adId}/ratings`);
             if (response.ok) {
                 const data = await response.json();
                 setRatingsData(data);

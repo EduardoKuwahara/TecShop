@@ -4,6 +4,7 @@ import { Trash2, Edit2, Shield, User as UserIcon } from 'lucide-react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
+import { API_BASE_URL } from '../config';
 
 type User = {
   _id: string;
@@ -15,8 +16,6 @@ type User = {
   status: 'active' | 'inactive';
   role: 'user' | 'admin';
 };
-
-const IP_DA_SUA_MAQUINA = '10.226.241.139';
 
 export default function AdminManageScreen() {
   const [users, setUsers] = useState<User[]>([]);
@@ -34,7 +33,7 @@ export default function AdminManageScreen() {
   const fetchUsers = async () => {
     try {
       if (!token) throw new Error('Sessão inválida. Faça login novamente.');
-      const res = await fetch(`http://${IP_DA_SUA_MAQUINA}:3001/admin/users`, {
+      const res = await fetch(`${API_BASE_URL}/admin/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -58,7 +57,7 @@ export default function AdminManageScreen() {
       { text: 'Excluir', style: 'destructive', onPress: async () => {
           try {
             if (!token) throw new Error('Sessão inválida.');
-            const res = await fetch(`http://${IP_DA_SUA_MAQUINA}:3001/admin/users/${id}`, {
+            const res = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
               method: 'DELETE',
               headers: { Authorization: `Bearer ${token}` },
             });
@@ -92,7 +91,7 @@ export default function AdminManageScreen() {
     if (!userToEdit) return;
     try {
         if (!token) throw new Error('Sessão inválida.');
-        const res = await fetch(`http://${IP_DA_SUA_MAQUINA}:3001/admin/users/${userToEdit._id}`, {
+        const res = await fetch(`${API_BASE_URL}/admin/users/${userToEdit._id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify(editFields),

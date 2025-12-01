@@ -8,8 +8,7 @@ import { ArrowLeft, Plus, Calendar, MapPin } from 'lucide-react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 import { useAuth } from '../contexts/AuthContext';
-
-const IP_DA_SUA_MAQUINA = '10.226.241.139';
+import { API_BASE_URL } from '../config';
 
 const categoryImages: Record<string, string> = {
   'Comida': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80',
@@ -73,7 +72,7 @@ export default function MyAdsScreen() {
   const fetchMyAds = async () => {
     if (!token) { setLoading(false); setRefreshing(false); return; }
     try {
-      const res = await fetch(`http://${IP_DA_SUA_MAQUINA}:3001/my-ads`, {
+      const res = await fetch(`${API_BASE_URL}/my-ads`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -100,7 +99,7 @@ export default function MyAdsScreen() {
       [{ text: "Cancelar", style: "cancel" }, { text: "Excluir", style: "destructive", onPress: async () => {
         try {
           if (!token) { Alert.alert('Erro', 'Sessão inválida.'); return; }
-          const response = await fetch(`http://${IP_DA_SUA_MAQUINA}:3001/ads/${adId}`, {
+          const response = await fetch(`${API_BASE_URL}/ads/${adId}`, {
             method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
           });
           if (response.ok) {
@@ -180,7 +179,7 @@ export default function MyAdsScreen() {
         date: modalDateObject.toISOString(),
         location: editFields.location,
       };
-      const response = await fetch(`http://${IP_DA_SUA_MAQUINA}:3001/ads/${adToEdit._id}`, {
+      const response = await fetch(`${API_BASE_URL}/ads/${adToEdit._id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload),
       });

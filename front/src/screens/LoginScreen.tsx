@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Modal, ScrollView, Alert, View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { User, Lock, Eye, EyeOff } from 'lucide-react-native';
 
-
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE_URL } from '../config';
 
 export default function LoginScreen() {
 
@@ -26,8 +26,6 @@ export default function LoginScreen() {
   const [regShowPassword, setRegShowPassword] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
 
-  const IP_DA_SUA_MAQUINA = '10.226.241.139';
-
   const handleLogin = async (loginEmail = email, loginSenha = senha) => {
     if (!loginEmail || !loginSenha) {
       Alert.alert('Erro', 'Por favor, preencha e-mail e senha.');
@@ -35,7 +33,7 @@ export default function LoginScreen() {
     }
     setLoginLoading(true);
     try {
-      const response = await fetch(`http://${IP_DA_SUA_MAQUINA}:3001/login`, {
+      const response = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, senha: loginSenha }),
@@ -60,7 +58,7 @@ export default function LoginScreen() {
     }
     setRegisterLoading(true);
     try {
-      const response = await fetch(`http://${IP_DA_SUA_MAQUINA}:3001/register`, {
+      const response = await fetch(`${API_BASE_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome, curso, periodo, contato, sala, email: regEmail, senha: regSenha }),

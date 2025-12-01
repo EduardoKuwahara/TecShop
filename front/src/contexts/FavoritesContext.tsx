@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
+import { API_BASE_URL } from '../config';
 
 interface FavoritesContextType {
   favorites: Set<string>;
@@ -35,8 +36,7 @@ export const FavoritesProvider: React.FC<FavoritesProviderProps> = ({ children }
   const loadFavorites = async () => {
     try {
       if (user) {
-        // Se o usuário está logado, carrega favoritos do servidor
-        const response = await fetch('http://10.226.241.139:3001/user/favorites', {
+        const response = await fetch(`${API_BASE_URL}/user/favorites`, {
           headers: {
             'Authorization': `Bearer ${token || ''}`,
           },
@@ -111,8 +111,7 @@ export const FavoritesProvider: React.FC<FavoritesProviderProps> = ({ children }
     
     if (user && token) {
       try {
-        // Sincroniza com o servidor
-        const endpoint = `http://10.226.241.139:3001/user/favorites/${adId}`;
+        const endpoint = `${API_BASE_URL}/user/favorites/${adId}`;
         const method = isRemoving ? 'DELETE' : 'POST';
         
         const response = await fetch(endpoint, {

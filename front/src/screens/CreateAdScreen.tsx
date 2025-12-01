@@ -6,8 +6,8 @@ import PhotoCard from '../components/Ads/PhotoCard';
 import DetailsCard from '../components/Ads/DetailsCard';
 import PriceLocationCard from '../components/Ads/PriceLocationCard';
 
-
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE_URL } from '../config';
 
 export default function AnnounceScreen() {
   const navigation = useNavigation<any>();
@@ -24,9 +24,6 @@ export default function AnnounceScreen() {
   const [date, setDate] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Substitua pela URL do seu backend
-  const IP_DA_SUA_MAQUINA = '10.226.241.139';
-
   const handlePublish = async () => {
     if (!title || !category || !description || !price || !location || !date) {
       Alert.alert('Erro', 'Por favor, preencha todos os campos do anúncio.');
@@ -41,7 +38,7 @@ export default function AnnounceScreen() {
         return;
       }
 
-      const response = await fetch(`http://${IP_DA_SUA_MAQUINA}:3001/ads`, {
+      const response = await fetch(`${API_BASE_URL}/ads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -5,6 +5,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Search, X } from 'lucide-react-native';
 import AdCard from '../components/Home/AdCard';
 import { useFavorites } from '../contexts/FavoritesContext';
+import { API_BASE_URL } from '../config';
 
 type Ad = {
   _id: string;
@@ -23,8 +24,6 @@ type Ad = {
   ratingCount?: number;
 };
 
-const IP_DA_SUA_MAQUINA = '10.226.241.139';
-
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const [ads, setAds] = useState<Ad[]>([]);
@@ -38,7 +37,7 @@ export default function HomeScreen() {
   const fetchAds = async (query = '') => {
     setLoading(true);
     try {
-      const url = `http://${IP_DA_SUA_MAQUINA}:3001/ads${query ? `?search=${query}` : ''}`;
+      const url = `${API_BASE_URL}/ads${query ? `?search=${query}` : ''}`;
       const response = await fetch(url);
       const data = await response.json();
       

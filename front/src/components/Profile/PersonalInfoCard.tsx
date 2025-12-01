@@ -3,13 +3,12 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator,
 import { User as UserIcon, Pencil } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import type { User } from '../../contexts/AuthContext';
+import { API_BASE_URL } from '../../config';
 
 export type PersonalInfoCardProps = {
   user: User;
   onProfileUpdate?: (data: User) => void | Promise<void>;
 };
-
-const IP_DA_SUA_MAQUINA = '10.226.241.139';
 
 export default function PersonalInfoCard({ user, onProfileUpdate }: PersonalInfoCardProps) {
   const { token } = useAuth();
@@ -50,7 +49,7 @@ export default function PersonalInfoCard({ user, onProfileUpdate }: PersonalInfo
         return;
       }
       
-      const response = await fetch(`http://${IP_DA_SUA_MAQUINA}:3001/profile`, {
+      const response = await fetch(`${API_BASE_URL}/profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

@@ -3,8 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react
 import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, Heart } from 'lucide-react-native';
 import { useFavorites } from '../contexts/FavoritesContext';
-
-const IP_DA_SUA_MAQUINA = '10.226.241.139';
+import { API_BASE_URL } from '../config';
 
 type Ad = {
   _id: string;
@@ -46,7 +45,7 @@ const FavoritesScreen = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`http://${IP_DA_SUA_MAQUINA}:3001/ads`);
+      const response = await fetch(`${API_BASE_URL}/ads`);
       const data = await response.json();
       
       if (response.ok) {

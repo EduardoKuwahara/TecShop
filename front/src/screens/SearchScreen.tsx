@@ -5,6 +5,7 @@ import CategoryBar from '../components/Search/CategoryBar';
 import AdCard from '../components/Home/AdCard';
 import { useNavigation } from '@react-navigation/native';
 import { useFavorites } from '../contexts/FavoritesContext';
+import { API_BASE_URL } from '../config';
 
 const categories = ['Todas', 'Comida', 'Serviço', 'Livros/Materiais'];
 const availabilityFilters = [
@@ -15,9 +16,6 @@ const availabilityFilters = [
   'Disponíveis até amanhã',
   'Disponíveis até 7 dias'
 ];
-
-const IP_DA_SUA_MAQUINA = '10.226.241.139';
-
 type Ad = {
   _id: string;
   title: string;
@@ -59,7 +57,7 @@ const SearchScreen = () => {
     setLoading(true);
     console.log('Aplicando filtros:', { query, category, availability });
     try {
-      let url = `http://${IP_DA_SUA_MAQUINA}:3001/ads`;
+      let url = `${API_BASE_URL}/ads`;
       const params = [];
       if (query) params.push(`search=${encodeURIComponent(query)}`);
       if (params.length > 0) url += `?${params.join('&')}`;
