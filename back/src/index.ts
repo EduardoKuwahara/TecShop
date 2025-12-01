@@ -649,6 +649,283 @@ app.delete('/api/ads/:adId/ratings', authMiddleware, async (req: any, res: Respo
     }
 });
 
+// Rotas de Compartilhamento
+app.get('/api/share/generate-link/:adId', async (req: Request, res: Response) => {
+    try {
+        const { adId } = req.params;
+        
+        if (!ObjectId.isValid(adId)) {
+            return res.status(400).json({ error: 'ID de anúncio inválido.' });
+        }
+
+        const ad = await anunciosCollection.findOne({ _id: new ObjectId(adId) });
+        if (!ad) {
+            return res.status(404).json({ error: 'Anúncio não encontrado.' });
+        }
+
+        // Criar slug do título
+        const slug = ad.title
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\s-]/g, '')
+            .trim()
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-');
+
+        const shareUrl = `${BASE_URL}/share/ad/${slug}-${adId}`;
+        
+        res.json({ 
+            shareUrl,
+            adTitle: ad.title,
+            adPrice: ad.price 
+        });
+    } catch (error) {
+        console.error('Erro ao gerar link de compartilhamento:', error);
+        res.status(500).json({ error: 'Erro ao gerar link de compartilhamento.' });
+    }
+});
+
+app.get('/share/ad/:slug', async (req: Request, res: Response) => {
+    try {
+        const { slug } = req.params;
+        const adId = slug.split('-').pop(); // Pega o ID do final do slug
+        
+        if (!adId || !ObjectId.isValid(adId)) {
+            return res.status(400).send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Link Inválido - TecShop</title>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1">
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+                        .error { color: #dc2626; }
+                    </style>
+                </head>
+                <body>
+                    <h1 class="error">Link Inválido</h1>
+                    <p>O link que você acessou não é válido.</p>
+                    <a href="/">Voltar ao TecShop</a>
+                </body>
+                </html>
+            `);
+        }
+
+        const pipeline = [
+            { $match: { _id: new ObjectId(adId) } },
+            { $lookup: { from: 'users', localField: 'authorId', foreignField: '_id', as: 'authorDetails' } },
+            { $unwind: '$authorDetails' },
+            { $project: { 'authorDetails.senha': 0, 'authorDetails.createdAt': 0, 'authorId': 0 } }
+        ];
+
+        const adResult = await anunciosCollection.aggregate(pipeline).toArray();
+        
+        if (adResult.length === 0) {
+            return res.status(404).send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Anúncio Não Encontrado - TecShop</title>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1">
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+                        .error { color: #dc2626; }
+                    </style>
+                </head>
+                <body>
+                    <h1 class="error">Anúncio Não Encontrado</h1>
+                    <p>O anúncio que você está procurando não existe ou foi removido.</p>
+                    <a href="/">Voltar ao TecShop</a>
+                </body>
+                </html>
+            `);
+        }
+
+        const ad = adResult[0];
+        const categoryImages: Record<string, string> = {
+            'Comida': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80',
+            'Serviço': 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=400&q=80',
+            'Livros/Materiais': 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=400&q=80',
+        };
+        
+        const imageUrl = ad.imageUrl && ad.imageUrl.trim() !== '' 
+            ? ad.imageUrl 
+            : (categoryImages[ad.category] || 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80');
+
+        const formattedDate = new Date(ad.availableUntil).toLocaleDateString('pt-BR');
+        const formattedTime = new Date(ad.availableUntil).toLocaleTimeString('pt-BR', {
+            hour: '2-digit', minute: '2-digit', hour12: false
+        });
+
+        // Retorna uma página HTML completa com meta tags para compartilhamento
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${ad.title} - TecShop</title>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <meta name="description" content="${ad.description}">
+                
+                <!-- Open Graph / Facebook -->
+                <meta property="og:type" content="product">
+                <meta property="og:url" content="${BASE_URL}/share/ad/${slug}">
+                <meta property="og:title" content="${ad.title} - TecShop">
+                <meta property="og:description" content="${ad.description}">
+                <meta property="og:image" content="${imageUrl}">
+                
+                <!-- Twitter -->
+                <meta property="twitter:card" content="summary_large_image">
+                <meta property="twitter:url" content="${BASE_URL}/share/ad/${slug}">
+                <meta property="twitter:title" content="${ad.title} - TecShop">
+                <meta property="twitter:description" content="${ad.description}">
+                <meta property="twitter:image" content="${imageUrl}">
+                
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        padding: 20px;
+                        background-color: #f9fafb;
+                    }
+                    .container {
+                        background: white;
+                        border-radius: 12px;
+                        overflow: hidden;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                    }
+                    .image {
+                        width: 100%;
+                        height: 250px;
+                        object-fit: cover;
+                    }
+                    .content {
+                        padding: 24px;
+                    }
+                    .title {
+                        font-size: 24px;
+                        font-weight: bold;
+                        margin: 0 0 8px 0;
+                        color: #18181b;
+                    }
+                    .price {
+                        font-size: 20px;
+                        font-weight: bold;
+                        color: #ffa800;
+                        margin-bottom: 16px;
+                    }
+                    .description {
+                        margin-bottom: 16px;
+                        color: #6b7280;
+                    }
+                    .info {
+                        display: flex;
+                        align-items: center;
+                        margin-bottom: 8px;
+                        color: #6b7280;
+                        font-size: 14px;
+                    }
+                    .seller {
+                        background: #f9fafb;
+                        padding: 16px;
+                        border-radius: 8px;
+                        margin-top: 16px;
+                    }
+                    .seller-title {
+                        font-weight: bold;
+                        margin-bottom: 8px;
+                        color: #18181b;
+                    }
+                    .app-button {
+                        display: inline-block;
+                        background: #3b82f6;
+                        color: white;
+                        text-decoration: none;
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        font-weight: 600;
+                        margin-top: 20px;
+                        text-align: center;
+                    }
+                    .app-button:hover {
+                        background: #2563eb;
+                    }
+                    @media (max-width: 480px) {
+                        body { padding: 10px; }
+                        .content { padding: 16px; }
+                        .title { font-size: 20px; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <img src="${imageUrl}" alt="${ad.title}" class="image">
+                    <div class="content">
+                        <h1 class="title">${ad.title}</h1>
+                        <div class="price">${ad.price}</div>
+                        <p class="description">${ad.description}</p>
+                        
+                        <div class="info">
+                            📍 ${ad.location}
+                        </div>
+                        <div class="info">
+                            🕒 Disponível até ${formattedDate} às ${formattedTime}
+                        </div>
+                        <div class="info">
+                            📂 ${ad.category}
+                        </div>
+                        
+                        <div class="seller">
+                            <div class="seller-title">Vendedor</div>
+                            <div><strong>${ad.authorDetails.nome}</strong></div>
+                            <div>${ad.authorDetails.curso}</div>
+                            <div>📧 ${ad.authorDetails.email}</div>
+                            <div>📱 ${ad.authorDetails.contato}</div>
+                        </div>
+                        
+                        <a href="tecshop://ad/${adId}" class="app-button">Abrir no App TecShop</a>
+                    </div>
+                </div>
+                
+                <script>
+                    // Tentar abrir no app automaticamente
+                    setTimeout(() => {
+                        window.location = 'tecshop://ad/${adId}';
+                    }, 2000);
+                </script>
+            </body>
+            </html>
+        `);
+    } catch (error) {
+        console.error('Erro ao exibir anúncio compartilhado:', error);
+        res.status(500).send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Erro - TecShop</title>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+                    .error { color: #dc2626; }
+                </style>
+            </head>
+            <body>
+                <h1 class="error">Erro Interno</h1>
+                <p>Ocorreu um erro ao carregar o anúncio.</p>
+                <a href="/">Voltar ao TecShop</a>
+            </body>
+            </html>
+        `);
+    }
+});
+
 // Iniciar servidor apenas para desenvolvimento local
 // No Vercel, o app é exportado como serverless function
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {

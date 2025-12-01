@@ -154,14 +154,12 @@ export const FavoritesProvider: React.FC<FavoritesProviderProps> = ({ children }
 
   const clearFavorites = () => {
     setFavorites(new Set());
-    // Limpar também do AsyncStorage
     if (user) {
       const favoritesKey = getFavoritesKey();
       AsyncStorage.removeItem(favoritesKey).catch(console.error);
     }
   };
 
-  // Carregar favoritos quando o componente for montado ou quando o usuário mudar
   useEffect(() => {
     loadFavorites();
   }, [user?.id]);

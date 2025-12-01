@@ -12,6 +12,7 @@ import {
 import { X, Share2, MessageCircle, Mail, Copy, ExternalLink } from 'lucide-react-native';
 import * as Linking from 'expo-linking';
 import * as Clipboard from 'expo-clipboard';
+import { API_BASE_URL } from '../config';
 
 interface ShareModalProps {
     visible: boolean;
@@ -31,9 +32,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     const [shareUrl, setShareUrl] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [shareText, setShareText] = useState<string>('');
-
-    // URLs do backend (Vercel em produção, local em desenvolvimento)
-    const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://seu-backend.vercel.app';
     
     useEffect(() => {
         if (visible) {
@@ -44,7 +42,16 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     const generateShareLink = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/share/generate-link/${adId}`);
+            // Remove /api from API_BASE_URL since it's already included in config
+            const apiUrl = API_BASE_URL.replace('/api', '');
+            const response = await fetch(`${apiUrl}/api/share/generate-link/${adId}`);
+            
+            // Verificar se a resposta é JSON válido
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Resposta não é JSON válido');
+            }
+            
             const data = await response.json();
             
             if (response.ok && data.shareUrl) {
@@ -57,9 +64,14 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             console.error('Erro ao gerar link de compartilhamento:', error);
             // Fallback para URL local
             const fallbackSlug = createSlug(adTitle) + '-' + adId;
-            const fallbackUrl = `${API_BASE_URL}/share/ad/${fallbackSlug}`;
+            const baseUrl = API_BASE_URL.replace('/api', '');
+            const fallbackUrl = `${baseUrl}/share/ad/${fallbackSlug}`;
             setShareUrl(fallbackUrl);
             setShareText(`Confira este anúncio: ${adTitle} - ${adPrice}\n\n${fallbackUrl}`);
+        } finally {
+            setLoading(false);
+        }
+    };
         } finally {
             setLoading(false);
         }
