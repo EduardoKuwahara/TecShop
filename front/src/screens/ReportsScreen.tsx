@@ -9,8 +9,8 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { Flag, AlertTriangle, CheckCircle2, Clock3, Trash2 } from 'lucide-react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { Flag, AlertTriangle, CheckCircle2, Clock3, Trash2, Eye } from 'lucide-react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../config';
 
@@ -44,13 +44,15 @@ const STATUS_COLORS: Record<ReportStatus, string> = {
 
 export default function ReportsScreen() {
   const { token, user } = useAuth();
+  const navigation = useNavigation<any>();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | ReportStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | ReportStatus>('active');
 
   const filteredReports = useMemo(() => {
     if (statusFilter === 'all') return reports;
+    if (statusFilter === 'active') return reports.filter(report => report.status !== 'resolved');
     return reports.filter(report => report.status === statusFilter);
   }, [reports, statusFilter]);
 
@@ -100,10 +102,17 @@ export default function ReportsScreen() {
       });
       const data = await response.json();
       if (response.ok) {
-        setReports(prev =>
-          prev.map(report => (report._id === reportId ? { ...report, ...data.report } : report))
-        );
-        Alert.alert('Sucesso', `Status atualizado para ${STATUS_LABELS[newStatus]}.`);
+        if (newStatus === 'resolved') {
+          // Remove relatórios resolvidos da lista
+          setReports(prev => prev.filter(report => report._id !== reportId));
+          Alert.alert('Sucesso', 'Denúncia marcada como resolvida e removida da lista.');
+        } else {
+          // Atualiza status para outros casos
+          setReports(prev =>
+            prev.map(report => (report._id === reportId ? { ...report, ...data.report } : report))
+          );
+          Alert.alert('Sucesso', `Status atualizado para ${STATUS_LABELS[newStatus]}.`);
+        }
       } else {
         Alert.alert('Erro', data.error || 'Não foi possível atualizar o status.');
       }
@@ -136,7 +145,7 @@ export default function ReportsScreen() {
               if (response.ok) {
                 // Remove relatórios relacionados ao anúncio excluído
                 setReports(prev => prev.filter(report => report.adId !== adId));
-                Alert.alert('Sucesso', 'Anúncio excluído com sucesso.');
+                Alert.alert('Sucesso', 'Anúncio excluído com sucesso e denúncias removidas da lista.');
               } else {
                 const data = await response.json();
                 Alert.alert('Erro', data.error || 'Não foi possível excluir o anúncio.');
@@ -149,6 +158,23 @@ export default function ReportsScreen() {
         },
       ]
     );
+  };
+
+  const handleViewAd = async (adId: string) => {
+    try {
+      // Buscar os dados completos do anúncio
+      const response = await fetch(`${API_BASE_URL}/ads/${adId}`);
+      
+      if (response.ok) {
+        const ad = await response.json();
+        navigation.navigate('AdDetail', { ad });
+      } else {
+        Alert.alert('Erro', 'Anúncio não encontrado ou foi removido.');
+      }
+    } catch (error) {
+      console.error('Erro ao buscar anúncio:', error);
+      Alert.alert('Erro', 'Falha de conexão ao carregar anúncio.');
+    }
   };
 
   const renderReport = ({ item }: { item: Report }) => (
@@ -187,6 +213,13 @@ export default function ReportsScreen() {
       </Text>
 
       <View style={styles.actionsRow}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.viewButton]}
+          onPress={() => handleViewAd(item.adId)}
+        >
+          <Eye size={16} color="#fff" />
+          <Text style={styles.actionButtonText}>Ver Anúncio</Text>
+        </TouchableOpacity>
         {item.status === 'pending' && (
           <TouchableOpacity
             style={[styles.actionButton, styles.reviewButton]}
@@ -232,14 +265,14 @@ export default function ReportsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.filterRow}>
-        {['all', 'pending', 'in_review', 'resolved'].map(status => (
+        {['active', 'all', 'pending', 'in_review', 'resolved'].map(status => (
           <TouchableOpacity
             key={status}
             style={[
               styles.filterChip,
               statusFilter === status && styles.filterChipActive,
             ]}
-            onPress={() => setStatusFilter(status as 'all' | ReportStatus)}
+            onPress={() => setStatusFilter(status as 'all' | 'active' | ReportStatus)}
           >
             <Text
               style={[
@@ -247,7 +280,12 @@ export default function ReportsScreen() {
                 statusFilter === status && styles.filterTextActive,
               ]}
             >
-              {status === 'all' ? 'Todos' : STATUS_LABELS[status as ReportStatus]}
+              {status === 'all' 
+                ? 'Todos' 
+                : status === 'active' 
+                ? 'Ativas' 
+                : STATUS_LABELS[status as ReportStatus]
+              }
             </Text>
           </TouchableOpacity>
         ))}
@@ -372,6 +410,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 10,
+  },
+  viewButton: {
+    backgroundColor: '#6B7280',
   },
   reviewButton: {
     backgroundColor: '#3B82F6',
