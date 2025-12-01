@@ -51,11 +51,27 @@ interface Anuncio {
     ratingCount?: number;
 }
 
+interface Report {
+    _id?: ObjectId;
+    adId: ObjectId;
+    adTitle: string;
+    reporterId: ObjectId;
+    reporterName: string;
+    reporterEmail: string;
+    reason: string;
+    description?: string;
+    status: 'pending' | 'in_review' | 'resolved';
+    createdAt: Date;
+    updatedAt: Date;
+    adminNotes?: string;
+}
+
 // Cache global de conexão MongoDB para serverless (Vercel)
 let cachedClient: MongoClient | null = null;
 let cachedDb: ReturnType<MongoClient['db']> | null = null;
 let usersCollection: Collection<User>;
 let anunciosCollection: Collection<Anuncio>;
+let reportsCollection: Collection<Report>;
 
 // Função helper para obter variáveis de ambiente com mensagem de erro clara
 const getEnvVar = (name: string): string => {
@@ -75,7 +91,8 @@ const connectToDatabase = async () => {
                 client: cachedClient, 
                 db: cachedDb, 
                 usersCollection, 
-                anunciosCollection 
+                anunciosCollection,
+                reportsCollection
             };
         }
 
@@ -94,6 +111,7 @@ const connectToDatabase = async () => {
         const db = client.db(DB_NAME);
         usersCollection = db.collection<User>('users');
         anunciosCollection = db.collection<Anuncio>('anuncios');
+        reportsCollection = db.collection<Report>('reports');
 
         // Cache das conexões
         cachedClient = client;
@@ -103,7 +121,8 @@ const connectToDatabase = async () => {
             client, 
             db, 
             usersCollection, 
-            anunciosCollection 
+            anunciosCollection,
+            reportsCollection
         };
     } catch (error) {
         console.error('❌ Erro ao conectar ao MongoDB:', error);
@@ -646,6 +665,113 @@ app.delete('/api/ads/:adId/ratings', authMiddleware, async (req: any, res: Respo
         res.json({ message: 'Avaliação removida com sucesso.' });
     } catch (error) {
         res.status(500).json({ error: 'Erro ao remover avaliação.' });
+    }
+});
+
+// Rotas de Denúncias
+app.post('/api/ads/:adId/report', authMiddleware, async (req: any, res: Response) => {
+    try {
+        const reporterId = req.user.id;
+        const { adId } = req.params;
+        const { reason, description } = req.body;
+
+        if (!reason || typeof reason !== 'string') {
+            return res.status(400).json({ error: 'Motivo da denúncia é obrigatório.' });
+        }
+
+        if (!ObjectId.isValid(adId)) {
+            return res.status(400).json({ error: 'ID de anúncio inválido.' });
+        }
+
+        const ad = await anunciosCollection.findOne({ _id: new ObjectId(adId) });
+        if (!ad) {
+            return res.status(404).json({ error: 'Anúncio não encontrado.' });
+        }
+
+        const reporter = await usersCollection.findOne({ _id: new ObjectId(reporterId) });
+        if (!reporter) {
+            return res.status(404).json({ error: 'Usuário não encontrado.' });
+        }
+
+        const existingReport = await reportsCollection.findOne({
+            adId: new ObjectId(adId),
+            reporterId: new ObjectId(reporterId),
+            status: { $in: ['pending', 'in_review'] }
+        });
+
+        if (existingReport) {
+            return res.status(409).json({ error: 'Você já enviou uma denúncia em aberto para este anúncio.' });
+        }
+
+        const newReport: Report = {
+            adId: new ObjectId(adId),
+            adTitle: ad.title,
+            reporterId: new ObjectId(reporterId),
+            reporterName: reporter.nome,
+            reporterEmail: reporter.email,
+            reason,
+            description: description || '',
+            status: 'pending',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        const result = await reportsCollection.insertOne(newReport);
+        res.status(201).json({ message: 'Denúncia enviada com sucesso.', reportId: result.insertedId });
+    } catch (error) {
+        console.error('Erro ao registrar denúncia:', error);
+        res.status(500).json({ error: 'Erro ao registrar denúncia.' });
+    }
+});
+
+app.get('/api/admin/reports', authMiddleware, adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+        const reports = await reportsCollection
+            .find({})
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        res.status(200).json(reports);
+    } catch (error) {
+        console.error('Erro ao buscar denúncias:', error);
+        res.status(500).json({ error: 'Erro ao buscar denúncias.' });
+    }
+});
+
+app.patch('/api/admin/reports/:reportId', authMiddleware, adminAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+        const { reportId } = req.params;
+        const { status, adminNotes } = req.body as { status?: Report['status']; adminNotes?: string };
+
+        if (!ObjectId.isValid(reportId)) {
+            return res.status(400).json({ error: 'ID da denúncia inválido.' });
+        }
+
+        const updateFields: Partial<Report> = { updatedAt: new Date() };
+        if (status) {
+            if (!['pending', 'in_review', 'resolved'].includes(status)) {
+                return res.status(400).json({ error: 'Status inválido.' });
+            }
+            updateFields.status = status;
+        }
+        if (typeof adminNotes === 'string') {
+            updateFields.adminNotes = adminNotes;
+        }
+
+        const result = await reportsCollection.updateOne(
+            { _id: new ObjectId(reportId) },
+            { $set: updateFields }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Denúncia não encontrada.' });
+        }
+
+        const updatedReport = await reportsCollection.findOne({ _id: new ObjectId(reportId) });
+        res.status(200).json({ message: 'Denúncia atualizada com sucesso.', report: updatedReport });
+    } catch (error) {
+        console.error('Erro ao atualizar denúncia:', error);
+        res.status(500).json({ error: 'Erro ao atualizar denúncia.' });
     }
 });
 
