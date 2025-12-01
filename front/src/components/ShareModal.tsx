@@ -39,44 +39,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         }
     }, [visible, adId]);
 
-    const generateShareLink = async () => {
-        setLoading(true);
-        try {
-            // Remove /api from API_BASE_URL since it's already included in config
-            const apiUrl = API_BASE_URL.replace('/api', '');
-            const response = await fetch(`${apiUrl}/api/share/generate-link/${adId}`);
-            
-            // Verificar se a resposta é JSON válido
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Resposta não é JSON válido');
-            }
-            
-            const data = await response.json();
-            
-            if (response.ok && data.shareUrl) {
-                setShareUrl(data.shareUrl);
-                setShareText(`Confira este anúncio: ${adTitle} - ${adPrice}\n\n${data.shareUrl}`);
-            } else {
-                throw new Error(data.error || 'Erro ao gerar link');
-            }
-        } catch (error) {
-            console.error('Erro ao gerar link de compartilhamento:', error);
-            // Fallback para URL local
-            const fallbackSlug = createSlug(adTitle) + '-' + adId;
-            const baseUrl = API_BASE_URL.replace('/api', '');
-            const fallbackUrl = `${baseUrl}/share/ad/${fallbackSlug}`;
-            setShareUrl(fallbackUrl);
-            setShareText(`Confira este anúncio: ${adTitle} - ${adPrice}\n\n${fallbackUrl}`);
-        } finally {
-            setLoading(false);
-        }
-    };
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const createSlug = (title: string): string => {
         return title
             .toLowerCase()
@@ -88,13 +50,54 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             .replace(/-+/g, '-');
     };
 
+    const generateShareLink = async () => {
+        setLoading(true);
+        try {
+            // Tenta buscar link encurtado do backend (se existir a rota)
+            // Remove /api do final se existir para pegar a raiz do site
+            const baseUrl = API_BASE_URL.replace(/\/api$/, ''); 
+            const response = await fetch(`${API_BASE_URL}/share/generate-link/${adId}`);
+            
+            const contentType = response.headers.get('content-type');
+            
+            if (response.ok && contentType && contentType.includes('application/json')) {
+                const data = await response.json();
+                if (data.shareUrl) {
+                    setShareUrl(data.shareUrl);
+                    setShareText(`Confira este anúncio: ${adTitle} - ${adPrice}\n\n${data.shareUrl}`);
+                    return; // Sucesso, sai da função
+                }
+            }
+            
+            // Se falhar ou não for JSON, lança erro para cair no catch (fallback)
+            throw new Error('Fallback para local');
+
+        } catch (error) {
+            // === FALLBACK (Gera o link localmente) ===
+            // Isso garante que o compartilhamento funcione mesmo sem rota no backend
+            const fallbackSlug = createSlug(adTitle);
+            // Garante que a URL base não tenha /api no final
+            const cleanBaseUrl = API_BASE_URL.replace(/\/api\/?$/, '');
+            
+            // Monta a URL: https://tec-shop.../share/ad/titulo-do-anuncio
+            // Note que removi o ID da URL visual para ficar mais bonito, 
+            // mas o backend precisa saber lidar com isso ou você deve adicionar o ID no final
+            const fallbackUrl = `${cleanBaseUrl}/share/ad/${adId}`; 
+            
+            setShareUrl(fallbackUrl);
+            setShareText(`Confira este anúncio: ${adTitle} - ${adPrice}\n\n${fallbackUrl}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleNativeShare = async () => {
         if (loading || !shareUrl) return;
         
         try {
             await Share.share({
                 message: shareText,
-                url: shareUrl,
+                url: shareUrl, // iOS suporta campo URL separado
             });
         } catch (error) {
             console.error('Erro ao compartilhar:', error);
@@ -135,7 +138,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
     const handleOpenBrowser = () => {
         if (loading || !shareUrl) return;
-        
         Linking.openURL(shareUrl);
     };
 
