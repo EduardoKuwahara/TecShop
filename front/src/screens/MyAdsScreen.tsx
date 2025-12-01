@@ -212,6 +212,11 @@ export default function MyAdsScreen() {
       const method = isActive ? 'DELETE' : 'POST';
       const url = `${API_BASE_URL}/ads/${ad._id}/promotion`;
 
+      console.log('Alternando promoção para URL:', url);
+      console.log('Método:', method);
+      console.log('Token presente:', token ? 'sim' : 'não');
+      console.log('Status atual da promoção:', isActive);
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -224,6 +229,17 @@ export default function MyAdsScreen() {
             })
           : undefined,
       });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers.get('content-type'));
+      
+      // Verificar se a resposta é JSON válido
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.log('Resposta não JSON:', textResponse.substring(0, 200));
+        throw new Error('Resposta não é JSON válido');
+      }
 
       const data = await response.json();
       if (!response.ok) {

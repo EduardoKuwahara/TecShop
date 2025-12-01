@@ -11,6 +11,7 @@ const categories = ['Todas', 'Comida', 'Serviço', 'Livros/Materiais'];
 const availabilityFilters = [
   'Todos os anúncios',
   'Apenas favoritos',
+  'Apenas promoções',
   'Expirados',
   'Disponíveis hoje',
   'Disponíveis até amanhã',
@@ -98,6 +99,9 @@ const SearchScreen = () => {
             switch (availability) {
               case 'Apenas favoritos':
                 result = isFavorite(ad._id);
+                break;
+              case 'Apenas promoções':
+                result = ad.promotionActive === true;
                 break;
               case 'Expirados':
                 result = availableUntil < now;
@@ -234,7 +238,8 @@ const SearchScreen = () => {
             {selectedAvailability !== 'Todos os anúncios' && (
               <View style={styles.activeFilterChip}>
                 <Text style={styles.activeFilterChipText}>
-                  {selectedAvailability === 'Apenas favoritos' ? '❤️' : '📅'} {selectedAvailability}
+                  {selectedAvailability === 'Apenas favoritos' ? '❤️' : 
+                   selectedAvailability === 'Apenas promoções' ? '🔥' : '📅'} {selectedAvailability}
                 </Text>
                 <TouchableOpacity onPress={() => setSelectedAvailability('Todos os anúncios')}>
                   <Text style={styles.activeFilterRemove}>✕</Text>
@@ -271,6 +276,12 @@ const SearchScreen = () => {
                   style={styles.cardPressable}
                   onPress={() => navigation.navigate('AdDetail', { ad: item })}
                 >
+                  {/* Badge de Promoção */}
+                  {item.promotionActive && (
+                    <View style={styles.promoBadge}>
+                      <Text style={styles.promoText}>{item.promotionLabel || 'PROMOÇÃO'}</Text>
+                    </View>
+                  )}
                   <Image 
                     source={{ uri: getImageUrl(item.category) }} 
                     style={styles.cardImage}
@@ -279,7 +290,11 @@ const SearchScreen = () => {
                     <Text style={styles.cardTitle} numberOfLines={1}>
                       {item.title}
                     </Text>
-                    <View style={styles.priceTag}>
+                    {/* Preço Original se em promoção */}
+                    {item.promotionActive && item.originalPrice && (
+                      <Text style={styles.originalPrice}>{item.originalPrice}</Text>
+                    )}
+                    <View style={[styles.priceTag, item.promotionActive && styles.priceTagPromoted]}>
                       <Text style={styles.priceText}>{item.price}</Text>
                     </View>
                     <Text style={styles.cardDescription} numberOfLines={2}>
@@ -287,8 +302,8 @@ const SearchScreen = () => {
                     </Text>
                     <Text style={styles.authorText}>Por {item.authorDetails?.nome}</Text>
                     <View style={styles.timeContainer}>
-                      <View style={styles.timeIndicator} />
-                      <Text style={styles.timeText}>
+                      <View style={[styles.timeIndicator, item.promotionActive && styles.timeIndicatorPromo]} />
+                      <Text style={[styles.timeText, item.promotionActive && styles.timeTextPromo]}>
                         Até {new Date(item.availableUntil).toLocaleDateString('pt-BR')}
                       </Text>
                     </View>
@@ -380,6 +395,9 @@ const SearchScreen = () => {
                   >
                     {availability === 'Apenas favoritos' ? (
                       <Heart size={16} color={selectedAvailability === availability ? '#fff' : '#71717A'} 
+                             fill={selectedAvailability === availability ? '#fff' : 'transparent'} />
+                    ) : availability === 'Apenas promoções' ? (
+                      <Star size={16} color={selectedAvailability === availability ? '#fff' : '#71717A'}
                              fill={selectedAvailability === availability ? '#fff' : 'transparent'} />
                     ) : (
                       <Calendar size={16} color={selectedAvailability === availability ? '#fff' : '#71717A'} />
@@ -571,6 +589,27 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  promoBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: '#DC2626',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    zIndex: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  promoText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
   cardImage: {
     width: '100%',
@@ -586,6 +625,12 @@ const styles = StyleSheet.create({
     color: '#18181B',
     marginBottom: 4,
   },
+  originalPrice: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
+    marginBottom: 2,
+  },
   priceTag: {
     backgroundColor: '#FFA800',
     borderRadius: 8,
@@ -593,6 +638,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     alignSelf: 'flex-start',
     marginBottom: 6,
+  },
+  priceTagPromoted: {
+    backgroundColor: '#DC2626',
   },
   priceText: {
     color: '#fff',
@@ -622,10 +670,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#22C55E',
     marginRight: 6,
   },
+  timeIndicatorPromo: {
+    backgroundColor: '#DC2626',
+  },
   timeText: {
     color: '#22C55E',
     fontSize: 12,
     fontWeight: '500',
+  },
+  timeTextPromo: {
+    color: '#DC2626',
   },
   loadingText: {
     textAlign: 'center',
