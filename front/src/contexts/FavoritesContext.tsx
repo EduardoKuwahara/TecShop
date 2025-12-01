@@ -46,11 +46,9 @@ export const FavoritesProvider: React.FC<FavoritesProviderProps> = ({ children }
           const serverFavorites = await response.json();
           setFavorites(new Set(serverFavorites));
           
-          // Salva no AsyncStorage como backup
           const favoritesKey = getFavoritesKey();
           await AsyncStorage.setItem(favoritesKey, JSON.stringify(serverFavorites));
         } else {
-          // Fallback para AsyncStorage se houver erro no servidor
           const favoritesKey = getFavoritesKey();
           const savedFavorites = await AsyncStorage.getItem(favoritesKey);
           if (savedFavorites) {
@@ -60,7 +58,6 @@ export const FavoritesProvider: React.FC<FavoritesProviderProps> = ({ children }
           }
         }
       } else {
-        // Se não há usuário logado, carrega apenas do AsyncStorage
         const favoritesKey = getFavoritesKey();
         const savedFavorites = await AsyncStorage.getItem(favoritesKey);
         if (savedFavorites) {
@@ -72,7 +69,6 @@ export const FavoritesProvider: React.FC<FavoritesProviderProps> = ({ children }
     } catch (error) {
       console.error('Erro ao carregar favoritos:', error);
       
-      // Fallback para AsyncStorage em caso de erro
       try {
         const favoritesKey = getFavoritesKey();
         const savedFavorites = await AsyncStorage.getItem(favoritesKey);
@@ -106,7 +102,6 @@ export const FavoritesProvider: React.FC<FavoritesProviderProps> = ({ children }
       newFavorites.add(adId);
     }
     
-    // Atualiza localmente primeiro para responsividade
     setFavorites(newFavorites);
     
     if (user && token) {
@@ -123,7 +118,6 @@ export const FavoritesProvider: React.FC<FavoritesProviderProps> = ({ children }
         });
         
         if (!response.ok) {
-          // Se falhou no servidor, reverte a mudança local
           if (isRemoving) {
             newFavorites.add(adId);
           } else {
@@ -133,7 +127,6 @@ export const FavoritesProvider: React.FC<FavoritesProviderProps> = ({ children }
           console.error('Erro ao sincronizar favorito com o servidor');
         }
       } catch (error) {
-        // Se falhou no servidor, reverte a mudança local
         if (isRemoving) {
           newFavorites.add(adId);
         } else {
@@ -144,7 +137,6 @@ export const FavoritesProvider: React.FC<FavoritesProviderProps> = ({ children }
       }
     }
     
-    // Salva no AsyncStorage como backup
     await saveFavorites(newFavorites);
   };
 
