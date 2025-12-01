@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Flag, AlertTriangle, CheckCircle2, Clock3 } from 'lucide-react-native';
+import { Flag, AlertTriangle, CheckCircle2, Clock3, Trash2 } from 'lucide-react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../config';
 
@@ -113,6 +113,44 @@ export default function ReportsScreen() {
     }
   };
 
+  const handleDeleteAd = async (adId: string, adTitle: string) => {
+    if (!token) return;
+
+    Alert.alert(
+      'Excluir Anúncio',
+      `Tem certeza que deseja excluir o anúncio "${adTitle}"? Esta ação não pode ser desfeita.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_BASE_URL}/ads/${adId}`, {
+                method: 'DELETE',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+              
+              if (response.ok) {
+                // Remove relatórios relacionados ao anúncio excluído
+                setReports(prev => prev.filter(report => report.adId !== adId));
+                Alert.alert('Sucesso', 'Anúncio excluído com sucesso.');
+              } else {
+                const data = await response.json();
+                Alert.alert('Erro', data.error || 'Não foi possível excluir o anúncio.');
+              }
+            } catch (error) {
+              console.error('Erro ao excluir anúncio:', error);
+              Alert.alert('Erro', 'Falha de conexão ao excluir anúncio.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderReport = ({ item }: { item: Report }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -167,6 +205,13 @@ export default function ReportsScreen() {
             <Text style={styles.actionButtonText}>Marcar resolvido</Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          style={[styles.actionButton, styles.deleteButton]}
+          onPress={() => handleDeleteAd(item.adId, item.adTitle)}
+        >
+          <Trash2 size={16} color="#fff" />
+          <Text style={styles.actionButtonText}>Excluir Anúncio</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -333,6 +378,9 @@ const styles = StyleSheet.create({
   },
   resolveButton: {
     backgroundColor: '#16A34A',
+  },
+  deleteButton: {
+    backgroundColor: '#DC2626',
   },
   actionButtonText: {
     color: '#fff',
